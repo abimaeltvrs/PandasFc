@@ -39,7 +39,9 @@
         <div class="dashboard-logo-wrap">
           <div id="dashboardMediaStage" class="dashboard-media-stage">
             <img id="dashboardMediaImage" class="dashboard-media hidden" alt="Mídia do PANDAS FC" />
-            <video id="dashboardMediaVideo" class="dashboard-media hidden" autoplay muted loop playsinline controls></video>
+            <video id="dashboardMediaVideo" class="dashboard-media hidden" autoplay muted loop playsinline controls preload="metadata"></video>
+            <iframe id="dashboardMediaFrame" class="dashboard-media dashboard-frame hidden" title="Mídia do PANDAS FC" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+            <div id="dashboardMediaError" class="dashboard-media-error hidden"></div>
 
             <img id="dashboardLogo" class="dashboard-logo hidden" alt="Logo PANDAS FC" />
             <div id="dashboardPlaceholder" class="logo-placeholder">
@@ -201,6 +203,14 @@
             </label>
             <label>Ou usar uma URL de mídia
               <input id="dashboardMediaUrl" type="url" placeholder="https://..." />
+            </label>
+            <label>Tipo da URL
+              <select id="dashboardMediaUrlType">
+                <option value="auto">Detectar automaticamente</option>
+                <option value="image">Imagem / GIF</option>
+                <option value="video">Vídeo MP4 / WebM</option>
+                <option value="youtube">YouTube</option>
+              </select>
             </label>
             <div class="form-actions">
               <button id="saveDashboardMediaUrl" class="primary" type="button">Salvar URL</button>

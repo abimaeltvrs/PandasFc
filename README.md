@@ -55,3 +55,13 @@ Em **Configurações → Mídia do Início / Dashboard** é possível:
 - usar uma URL de mídia.
 
 Arquivos enviados diretamente têm limite de 650 KB para permanecer dentro do limite de documentos do Firestore. Para vídeos maiores, use a opção de URL.
+
+## Correção de mídia
+
+A URL agora possui um seletor de tipo:
+- Detectar automaticamente
+- Imagem / GIF
+- Vídeo MP4 / WebM
+- YouTube
+
+Para vídeos hospedados fora do YouTube, prefira um **link direto para o arquivo**. Links para páginas de compartilhamento nem sempre podem ser reproduzidos pelo navegador.

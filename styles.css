@@ -189,3 +189,26 @@ button:focus-visible{
   .dashboard-media-stage{min-height:48vh}
   .dashboard-media{max-height:58vh}
 }
+
+.dashboard-frame{
+  width:min(100%,1000px);
+  height:min(62vh,620px);
+  border:0;
+  background:#071927;
+}
+.dashboard-media-error{
+  width:min(100%,900px);
+  padding:22px;
+  border-radius:14px;
+  border:1px solid #efb3b3;
+  background:#fff4f4;
+  color:#9b1c1c;
+  text-align:center;
+  line-height:1.45;
+}
+.config-section select{
+  border:1px solid #d7dbe0;
+  border-radius:10px;
+  padding:11px;
+  background:#fff;
+}

@@ -25,7 +25,8 @@ const state = {
   dashboardMedia: {
     type: "",
     data: "",
-    url: ""
+    url: "",
+    urlMode: "auto"
   }
 };
 
@@ -104,8 +105,13 @@ function connectRealtime(){
     state.dashboardMedia = {
       type: d.mediaType || "",
       data: d.mediaData || "",
-      url: d.mediaUrl || ""
+      url: d.mediaUrl || "",
+      urlMode: d.urlMode || "auto"
     };
+    const typeSelect=document.getElementById("dashboardMediaUrlType");
+    const urlInput=document.getElementById("dashboardMediaUrl");
+    if(typeSelect) typeSelect.value=state.dashboardMedia.urlMode;
+    if(urlInput && state.dashboardMedia.url) urlInput.value=state.dashboardMedia.url;
     firebaseReady = true;
     setSyncStatus("☁️ Sincronizado","ok");
     renderDashboardMedia();
@@ -356,17 +362,47 @@ function renderLogo(){
 }
 
 
+function youtubeEmbedUrl(url){
+  try{
+    const u=new URL(url);
+    let id="";
+    if(u.hostname.includes("youtu.be")){
+      id=u.pathname.split("/").filter(Boolean)[0]||"";
+    }else if(u.hostname.includes("youtube.com")){
+      if(u.pathname.startsWith("/watch")) id=u.searchParams.get("v")||"";
+      else if(u.pathname.startsWith("/shorts/")) id=u.pathname.split("/")[2]||"";
+      else if(u.pathname.startsWith("/embed/")) id=u.pathname.split("/")[2]||"";
+    }
+    return id ? `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&loop=1&playlist=${id}&playsinline=1` : "";
+  }catch{return "";}
+}
+
+function showDashboardMediaError(message){
+  const box=document.getElementById('dashboardMediaError');
+  if(!box) return;
+  box.textContent=message;
+  box.classList.remove('hidden');
+}
+
 function renderDashboardMedia(){
   const img=document.getElementById('dashboardMediaImage');
   const video=document.getElementById('dashboardMediaVideo');
+  const frame=document.getElementById('dashboardMediaFrame');
+  const errorBox=document.getElementById('dashboardMediaError');
   const logo=document.getElementById('dashboardLogo');
   const ph=document.getElementById('dashboardPlaceholder');
-  if(!img || !video) return;
+  if(!img || !video || !frame) return;
 
   img.classList.add('hidden');
   video.classList.add('hidden');
+  frame.classList.add('hidden');
+  if(errorBox){ errorBox.classList.add('hidden'); errorBox.textContent=''; }
+
   video.pause();
   video.removeAttribute('src');
+  video.load();
+  frame.removeAttribute('src');
+  img.removeAttribute('src');
 
   const media=state.dashboardMedia || {};
   const src=media.data || media.url || '';
@@ -380,17 +416,55 @@ function renderDashboardMedia(){
   ph.classList.add('hidden');
 
   const type=(media.type || '').toLowerCase();
-  const isVideo=type.startsWith('video/') || /\.(mp4|webm)(\?|#|$)/i.test(src);
+  const mode=(media.urlMode || 'auto').toLowerCase();
+
+  let isYoutube = mode==='youtube';
+  let isVideo = mode==='video';
+  let isImage = mode==='image';
+
+  if(mode==='auto'){
+    isYoutube = /(?:youtube\.com|youtu\.be)/i.test(src);
+    isVideo = type.startsWith('video/') || /\.(mp4|webm|mov)(?:\?|#|$)/i.test(src);
+    isImage = type.startsWith('image/') || /\.(png|gif|jpg|jpeg|webp)(?:\?|#|$)/i.test(src);
+    if(!isYoutube && !isVideo && !isImage){
+      // Unknown URL: try as image first because image errors are fast.
+      isImage = true;
+    }
+  }
+
+  if(isYoutube){
+    const embed=youtubeEmbedUrl(src);
+    if(!embed){
+      showDashboardMediaError('Não consegui reconhecer esse link do YouTube. Use um link como youtube.com/watch?v=... ou youtu.be/...');
+      return;
+    }
+    frame.src=embed;
+    frame.classList.remove('hidden');
+    return;
+  }
 
   if(isVideo){
+    video.onerror=()=>{
+      video.classList.add('hidden');
+      showDashboardMediaError('O vídeo não pôde ser reproduzido. Para URL, use um link direto para arquivo MP4/WebM (o endereço normalmente termina em .mp4 ou .webm), ou selecione YouTube quando for um link do YouTube.');
+    };
+    video.oncanplay=()=>{
+      if(errorBox) errorBox.classList.add('hidden');
+      video.play().catch(()=>{});
+    };
     video.src=src;
     video.classList.remove('hidden');
     video.load();
-    video.play().catch(()=>{});
-  }else{
-    img.src=src;
-    img.classList.remove('hidden');
+    return;
   }
+
+  img.onerror=()=>{
+    img.classList.add('hidden');
+    showDashboardMediaError('A imagem/GIF não pôde ser carregada. Se estiver usando uma URL, ela precisa apontar diretamente para a imagem/GIF. Se o link for de vídeo, selecione “Vídeo MP4 / WebM” ou “YouTube”.');
+  };
+  img.onload=()=>{ if(errorBox) errorBox.classList.add('hidden'); };
+  img.src=src;
+  img.classList.remove('hidden');
 }
 
 document.getElementById('dashboardMediaInput').addEventListener('change', async e=>{
@@ -404,8 +478,8 @@ document.getElementById('dashboardMediaInput').addEventListener('change', async 
     return;
   }
 
-  if(file.size > 650 * 1024){
-    alert('Esse arquivo é maior que 650 KB. Para vídeos maiores, hospede o arquivo em outro serviço e use o campo de URL.');
+  if(file.size > 700 * 1024){
+    alert('Esse arquivo é maior que 700 KB. O Firestore não é indicado para armazenar vídeos grandes. Para vídeos maiores, use uma URL direta para MP4/WebM ou um link do YouTube.');
     e.target.value='';
     return;
   }
@@ -417,6 +491,7 @@ document.getElementById('dashboardMediaInput').addEventListener('change', async 
       mediaType:file.type,
       mediaData:data,
       mediaUrl:'',
+      urlMode:file.type.startsWith('video/') ? 'video' : 'image',
       updatedAt:serverTimestamp()
     },{merge:true});
     document.getElementById('dashboardMediaUrl').value='';
@@ -426,17 +501,33 @@ document.getElementById('dashboardMediaInput').addEventListener('change', async 
 
 document.getElementById('saveDashboardMediaUrl').onclick=async()=>{
   const url=document.getElementById('dashboardMediaUrl').value.trim();
+  const mode=document.getElementById('dashboardMediaUrlType').value || 'auto';
+
   if(!url){
     alert('Informe uma URL.');
     return;
   }
 
+  try{ new URL(url); }
+  catch{
+    alert('A URL informada não é válida.');
+    return;
+  }
+
   const lower=url.toLowerCase();
-  let type='image/remote';
-  if(/\.(mp4)(\?|#|$)/i.test(lower)) type='video/mp4';
-  else if(/\.(webm)(\?|#|$)/i.test(lower)) type='video/webm';
-  else if(/\.(gif)(\?|#|$)/i.test(lower)) type='image/gif';
-  else if(/\.(png)(\?|#|$)/i.test(lower)) type='image/png';
+  let type='remote/auto';
+
+  if(mode==='video') type='video/remote';
+  else if(mode==='image') type='image/remote';
+  else if(mode==='youtube') type='video/youtube';
+  else{
+    if(/(?:youtube\.com|youtu\.be)/i.test(lower)) type='video/youtube';
+    else if(/\.(mp4)(?:\?|#|$)/i.test(lower)) type='video/mp4';
+    else if(/\.(webm)(?:\?|#|$)/i.test(lower)) type='video/webm';
+    else if(/\.(gif)(?:\?|#|$)/i.test(lower)) type='image/gif';
+    else if(/\.(png)(?:\?|#|$)/i.test(lower)) type='image/png';
+    else if(/\.(jpe?g|webp)(?:\?|#|$)/i.test(lower)) type='image/remote';
+  }
 
   try{
     markWriting();
@@ -444,6 +535,7 @@ document.getElementById('saveDashboardMediaUrl').onclick=async()=>{
       mediaType:type,
       mediaData:'',
       mediaUrl:url,
+      urlMode:mode,
       updatedAt:serverTimestamp()
     },{merge:true});
     toast('URL do Dashboard salva e sincronizada.');
@@ -458,9 +550,11 @@ document.getElementById('removeDashboardMedia').onclick=async()=>{
       mediaType:'',
       mediaData:'',
       mediaUrl:'',
+      urlMode:'auto',
       updatedAt:serverTimestamp()
     },{merge:true});
     document.getElementById('dashboardMediaUrl').value='';
+    document.getElementById('dashboardMediaUrlType').value='auto';
     toast('Mídia removida.');
   }catch(err){syncError(err);}
 };
