@@ -1,4 +1,6 @@
-const CACHE='pandas-fc-v23-push-background';
+importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
+
+const CACHE='pandas-fc-v24-onesignal-unificado';
 
 const SHELL=[
   './',

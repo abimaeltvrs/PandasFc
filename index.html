@@ -12,32 +12,34 @@
   <link rel="stylesheet" href="./styles.css" />
   <title>PANDAS FC</title>
 
-  <!-- OneSignal Web Push -->
+  <!-- OneSignal Web Push - usa o MESMO service worker do PWA -->
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <script>
     window.OneSignalDeferred = window.OneSignalDeferred || [];
-    window.OneSignalDeferred.push(async function(OneSignal) {
-      // Remove apenas registros antigos criados com caminho duplicado /PandasFc/PandasFc/
-      if ("serviceWorker" in navigator) {
-        try {
-          const regs = await navigator.serviceWorker.getRegistrations();
-          for (const reg of regs) {
-            if (reg.scope && reg.scope.includes("/PandasFc/PandasFc/")) {
-              await reg.unregister();
-            }
-          }
-        } catch (e) {
-          console.warn("Não foi possível limpar service worker antigo:", e);
-        }
-      }
 
+    window.OneSignalDeferred.push(async function(OneSignal) {
+      /*
+       * PANDAS FC usa um único service worker:
+       *   /PandasFc/sw.js
+       *
+       * Isso evita que o service worker do PWA e o do OneSignal
+       * disputem o controle do aplicativo instalado.
+       */
       await OneSignal.init({
         appId: "ad62bcf9-471a-499b-b65c-b7a11727b943",
-        serviceWorkerPath: "/PandasFc/push/onesignal/OneSignalSDKWorker.js",
-        serviceWorkerParam: { scope: "/PandasFc/push/onesignal/" },
+
+        // OneSignal pede caminho relativo à raiz do domínio, sem "/" inicial.
+        serviceWorkerPath: "PandasFc/sw.js",
+
+        // O mesmo escopo usado pelo PWA.
+        serviceWorkerParam: {
+          scope: "/PandasFc/"
+        },
+
         notifyButton: { enable: false },
         welcomeNotification: { disable: true }
       });
+
       window.PandasOneSignal = OneSignal;
       window.dispatchEvent(new Event("pandas-onesignal-ready"));
     });
