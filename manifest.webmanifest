@@ -6,8 +6,8 @@
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#f4f6f8",
-  "theme_color": "#111111",
+  "background_color": "#020b18",
+  "theme_color": "#03182a",
   "description": "Aplicativo de gestão do time PANDAS FC",
   "icons": [
     {

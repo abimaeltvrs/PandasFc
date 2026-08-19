@@ -986,3 +986,22 @@ select option{
     font-size:12px;
   }
 }
+
+
+/* OneSignal / notificações push */
+.notification-control{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  min-width:0;
+}
+.notification-control .primary{
+  width:100%;
+}
+.push-status{
+  color:#a8bdd1;
+  font-size:12px;
+  line-height:1.25;
+}
+.push-status.ok{color:#78e59a}
+.push-status.err{color:#ff9a9a}

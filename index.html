@@ -11,6 +11,24 @@
   <link rel="apple-touch-icon" href="./icon-192.png" />
   <link rel="stylesheet" href="./styles.css" />
   <title>PANDAS FC</title>
+
+  <!-- OneSignal Web Push -->
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+  <script>
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(async function(OneSignal) {
+      await OneSignal.init({
+        appId: "ad62bcf9-471a-499b-b65c-b7a11727b943",
+        serviceWorkerPath: "PandasFc/push/onesignal/OneSignalSDKWorker.js",
+        serviceWorkerParam: { scope: "/PandasFc/push/onesignal/" },
+        notifyButton: { enable: false },
+        welcomeNotification: { disable: true }
+      });
+      window.PandasOneSignal = OneSignal;
+      window.dispatchEvent(new Event("pandas-onesignal-ready"));
+    });
+  </script>
+
 </head>
 <body>
   <header class="topbar header-art">
@@ -193,7 +211,10 @@
           <label>Logo do PANDAS FC
             <input id="teamLogoInput" type="file" accept="image/*" />
           </label>
-          <button id="notifyBtn" class="primary">🔔 Ativar notificações</button>
+          <div class="notification-control">
+            <button id="notifyBtn" class="primary">🔔 Ativar notificações</button>
+            <small id="pushStatus" class="push-status">OneSignal: aguardando...</small>
+          </div>
           <button id="installBtn2" class="primary">📲 Instalar aplicativo</button>
           <div class="config-section">
             <h3>🎬 Mídia do Início / Dashboard</h3>

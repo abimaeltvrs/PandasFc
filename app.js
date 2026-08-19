@@ -744,12 +744,84 @@ document.getElementById('migrateBtn').onclick=async()=>{
   }catch(err){syncError(err);}
 };
 
-document.getElementById('notifyBtn').onclick=async()=>{if(!('Notification'in window)){alert('Este navegador não suporta notificações.');return;}const p=await Notification.requestPermission();toast(p==='granted'?'Notificações ativadas.':'Permissão não concedida.');};
+const notifyBtn=document.getElementById('notifyBtn');
+const pushStatus=document.getElementById('pushStatus');
+
+function setPushStatus(text,type=''){
+  if(!pushStatus)return;
+  pushStatus.textContent=text;
+  pushStatus.className=`push-status ${type}`.trim();
+}
+
+async function refreshPushStatus(){
+  const OneSignal=window.PandasOneSignal;
+  if(!OneSignal){
+    setPushStatus('OneSignal: conectando...');
+    return;
+  }
+
+  try{
+    const permission=OneSignal.Notifications.permission;
+    const optedIn=OneSignal.User.PushSubscription.optedIn;
+
+    if(permission && optedIn){
+      setPushStatus('✅ Notificações push ativadas','ok');
+      if(notifyBtn) notifyBtn.textContent='🔔 Notificações ativadas';
+    }else if(Notification.permission==='denied'){
+      setPushStatus('🚫 Notificações bloqueadas no navegador','err');
+      if(notifyBtn) notifyBtn.textContent='🔕 Notificações bloqueadas';
+    }else{
+      setPushStatus('🔔 Toque para permitir notificações');
+      if(notifyBtn) notifyBtn.textContent='🔔 Ativar notificações';
+    }
+  }catch(err){
+    console.error('Erro ao consultar OneSignal:',err);
+    setPushStatus('⚠️ Não foi possível verificar o push','err');
+  }
+}
+
+async function enablePushNotifications(){
+  const OneSignal=window.PandasOneSignal;
+  if(!OneSignal){
+    toast('OneSignal ainda está carregando. Tente novamente em alguns segundos.');
+    return;
+  }
+
+  try{
+    await OneSignal.Notifications.requestPermission();
+
+    if(OneSignal.Notifications.permission){
+      await OneSignal.User.PushSubscription.optIn();
+      toast('Notificações push ativadas.');
+    }else{
+      toast('Permissão de notificações não concedida.');
+    }
+
+    await refreshPushStatus();
+  }catch(err){
+    console.error('Erro ao ativar OneSignal:',err);
+    toast('Não foi possível ativar as notificações.');
+    setPushStatus('⚠️ Erro ao ativar notificações','err');
+  }
+}
+
+if(notifyBtn) notifyBtn.onclick=enablePushNotifications;
+
+window.addEventListener('pandas-onesignal-ready',()=>{
+  refreshPushStatus();
+
+  try{
+    window.PandasOneSignal.Notifications.addEventListener('permissionChange',refreshPushStatus);
+    window.PandasOneSignal.User.PushSubscription.addEventListener('change',refreshPushStatus);
+  }catch(err){
+    console.warn('Listener OneSignal:',err);
+  }
+});
+
+/* Mantido apenas como fallback visual quando o aplicativo estiver aberto.
+   As notificações em segundo plano passam a ser entregues pelo OneSignal. */
 function checkTodayMatches(){
- if(!('Notification'in window)||Notification.permission!=='granted')return;
- const today=new Date().toISOString().slice(0,10);const k='pandasfc_notified_'+today;if(localStorage.getItem(k))return;
- const evs=state.events.filter(e=>e.date===today);if(!evs.length)return;
- evs.forEach(e=>new Notification('⚽ Hoje tem PANDAS FC!',{body:`PANDAS FC × ${e.opponent} • ${e.time} • ${e.location}`,icon:'./icon-192.png'}));localStorage.setItem(k,'1');
+  // Não cria mais notificações locais duplicadas.
 }
 
 let deferredPrompt=null;
