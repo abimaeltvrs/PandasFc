@@ -17,6 +17,58 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
 
+const PUSH_WORKER_URL = "https://pandas-fc-push.abimaeltablet.workers.dev/";
+
+function getAlertLabel(value){
+  const labels={
+    "15":"15 min antes",
+    "30":"30 min antes",
+    "60":"1 hora antes",
+    "120":"2 horas antes",
+    "360":"6 horas antes",
+    "720":"12 horas antes",
+    "1440":"1 dia antes",
+    "custom":"horário personalizado"
+  };
+  return labels[String(value)] || "1 hora antes";
+}
+
+function getAlertDateISO(date,time,alertValue,customValue=""){
+  if(alertValue==="custom"){
+    if(!customValue) throw new Error("Escolha o horário personalizado do alerta.");
+    const customDate=new Date(customValue);
+    if(Number.isNaN(customDate.getTime())) throw new Error("Horário personalizado inválido.");
+    return customDate.toISOString();
+  }
+
+  const matchDate=new Date(`${date}T${time}:00`);
+  if(Number.isNaN(matchDate.getTime())) throw new Error("Data ou hora da partida inválida.");
+
+  const minutes=Number(alertValue || 60);
+  return new Date(matchDate.getTime() - minutes*60*1000).toISOString();
+}
+
+async function callPushWorker(payload){
+  const response=await fetch(PUSH_WORKER_URL,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(payload)
+  });
+
+  let result={};
+  try{ result=await response.json(); }catch{}
+
+  if(!response.ok || result.ok===false){
+    const detail=result?.details?.errors?.join?.(" • ") ||
+                 result?.details?.errors?.[0] ||
+                 result?.error ||
+                 `Erro HTTP ${response.status}`;
+    throw new Error(detail);
+  }
+
+  return result;
+}
+
 const state = {
   players: [],
   events: [],
@@ -295,99 +347,158 @@ async function downloadLineupImage(){
 }
 function downloadCanvas(c,name){const a=document.createElement('a');a.download=name;a.href=c.toDataURL('image/png');a.click();}
 
-// ===== LEMBRETE DE PARTIDA VIA ONESIGNAL =====
-// Depois de publicar o arquivo pandas-push-worker.js em um backend seguro,
-// troque a URL abaixo pelo endereço HTTPS desse endpoint.
-const PANDAS_PUSH_API_URL = 'COLE_AQUI_A_URL_DO_SEU_WORKER';
-
-const MATCH_REMINDER_OPTIONS = [
-  [15,'15 minutos antes'],[30,'30 minutos antes'],[60,'1 hora antes'],
-  [120,'2 horas antes'],[360,'6 horas antes'],[720,'12 horas antes'],[1440,'1 dia antes']
-];
-
-function ensureMatchReminderField(){
-  if(document.getElementById('matchReminderMinutes')) return;
-  const form=document.getElementById('eventForm');
-  const time=document.getElementById('matchTime');
-  if(!form || !time) return;
-  const wrap=document.createElement('label');
-  wrap.className='match-reminder-field';
-  wrap.style.display='block';
-  wrap.style.marginTop='14px';
-  wrap.innerHTML=`<span style="display:block;margin-bottom:7px;font-weight:600">🔔 Avisar antes do jogo</span>
-    <select id="matchReminderMinutes" style="width:100%;min-height:46px">
-      ${MATCH_REMINDER_OPTIONS.map(([v,t])=>`<option value="${v}" ${v===60?'selected':''}>${t}</option>`).join('')}
-    </select>`;
-  const host=time.closest('label') || time.parentElement;
-  host.insertAdjacentElement('afterend',wrap);
-}
-
-function getMatchReminderMinutes(){
-  return Math.max(1,Number(document.getElementById('matchReminderMinutes')?.value || 60));
-}
-
-async function scheduleMatchPush(eventId,eventData){
-  if(!PANDAS_PUSH_API_URL || PANDAS_PUSH_API_URL.includes('COLE_AQUI')){
-    console.warn('Push agendado não enviado: configure PANDAS_PUSH_API_URL.');
-    return {configured:false};
-  }
-  const response=await fetch(PANDAS_PUSH_API_URL,{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      eventId,
-      opponent:eventData.opponent,
-      date:eventData.date,
-      time:eventData.time,
-      location:eventData.location,
-      reminderMinutes:eventData.reminderMinutes
-    })
-  });
-  const data=await response.json().catch(()=>({}));
-  if(!response.ok) throw new Error(data.error || `Erro HTTP ${response.status}`);
-  return data;
-}
-
-ensureMatchReminderField();
-
 const eventForm=document.getElementById('eventForm');
+const matchAlert=document.getElementById('matchAlert');
+const customAlertWrap=document.getElementById('customAlertWrap');
+const customAlertTime=document.getElementById('customAlertTime');
+
+function updateCustomAlertVisibility(){
+  if(!matchAlert || !customAlertWrap)return;
+  const custom=matchAlert.value==='custom';
+  customAlertWrap.classList.toggle('hidden',!custom);
+  if(customAlertTime) customAlertTime.required=custom;
+}
+
+if(matchAlert){
+  matchAlert.addEventListener('change',updateCustomAlertVisibility);
+  updateCustomAlertVisibility();
+}
+
 eventForm.addEventListener('submit',async e=>{
   e.preventDefault();
+
   const id=document.getElementById('eventId').value || uid();
-  const old=state.events.find(x=>x.id===id); let logo=old?.logo||'';
-  const f=document.getElementById('opponentLogo').files[0]; if(f)logo=await fileToCompressedDataURL(f);
+  const old=state.events.find(x=>x.id===id);
+  let logo=old?.logo||'';
+  const f=document.getElementById('opponentLogo').files[0];
+  if(f)logo=await fileToCompressedDataURL(f);
+
+  const opponent=document.getElementById('opponentName').value.trim();
+  const date=document.getElementById('matchDate').value;
+  const time=document.getElementById('matchTime').value;
+  const location=document.getElementById('matchLocation').value.trim();
+  const alertValue=matchAlert?.value || '60';
+  const customValue=customAlertTime?.value || '';
+
+  let alertAt;
+  try{
+    alertAt=getAlertDateISO(date,time,alertValue,customValue);
+  }catch(err){
+    alert(err.message);
+    return;
+  }
+
+  if(new Date(alertAt).getTime() <= Date.now()){
+    alert('O horário do alerta precisa estar no futuro. Escolha uma antecedência menor ou um horário personalizado.');
+    return;
+  }
+
   const obj={
-    opponent:document.getElementById('opponentName').value.trim(),
+    opponent,
     logo,
-    date:document.getElementById('matchDate').value,
-    time:document.getElementById('matchTime').value,
-    location:document.getElementById('matchLocation').value.trim(),
-    reminderMinutes:getMatchReminderMinutes(),
+    date,
+    time,
+    location,
+    alertValue,
+    alertAt,
+    customAlertTime:alertValue==='custom' ? customValue : '',
     goalsFor:old?.goalsFor??'',
     goalsAgainst:old?.goalsAgainst??'',
+    notificationMessageId:old?.notificationMessageId||'',
     updatedAt:serverTimestamp()
   };
+
   try{
     markWriting();
+
+    // Agenda primeiro a nova notificação. Se for edição, informa o ID anterior
+    // para o Worker cancelar a notificação antiga após criar a nova.
+    const pushResult=await callPushWorker({
+      action:"schedule",
+      opponent,
+      date:formatDate(date),
+      time,
+      location,
+      sendAt:alertAt,
+      alertLabel:getAlertLabel(alertValue),
+      previousMessageId:old?.notificationMessageId||null,
+      message:
+        `PANDAS FC x ${opponent}\n` +
+        `🕐 ${formatDate(date)} às ${time}\n` +
+        `${location ? `📍 ${location}\n` : ''}` +
+        `🔔 Alerta: ${getAlertLabel(alertValue)}`
+    });
+
+    obj.notificationMessageId=pushResult.messageId || '';
+
     await setDoc(doc(db,"events",id),obj,{merge:true});
-    try{
-      const pushResult=await scheduleMatchPush(id,obj);
-      if(pushResult?.configured===false){
-        toast('Confronto salvo. Configure o servidor push para ativar o lembrete.');
-      }else{
-        toast('Confronto salvo e lembrete push agendado.');
-      }
-    }catch(pushErr){
-      console.error('Erro ao agendar lembrete push:',pushErr);
-      toast('Confronto salvo, mas houve erro ao agendar o lembrete.');
-    }
-    eventForm.reset();document.getElementById('eventId').value='';
-    ensureMatchReminderField();
-  }catch(err){syncError(err);}
+
+    eventForm.reset();
+    document.getElementById('eventId').value='';
+    if(matchAlert) matchAlert.value='60';
+    if(customAlertTime) customAlertTime.value='';
+    updateCustomAlertVisibility();
+
+    toast(`Confronto salvo. 🔔 Alerta: ${getAlertLabel(alertValue)}.`);
+  }catch(err){
+    console.error('Erro ao agendar alerta:',err);
+    setSyncStatus("⚠️ Erro ao agendar alerta","err");
+    alert(`Não foi possível agendar a notificação.\n\n${err.message}`);
+  }
 });
-document.getElementById('cancelEventEdit').onclick=()=>{eventForm.reset();document.getElementById('eventId').value='';};
-function editEvent(id){const e=state.events.find(x=>x.id===id);if(!e)return;ensureMatchReminderField();document.getElementById('eventId').value=e.id;document.getElementById('opponentName').value=e.opponent||'';document.getElementById('matchDate').value=e.date||'';document.getElementById('matchTime').value=e.time||'';document.getElementById('matchLocation').value=e.location||'';const r=document.getElementById('matchReminderMinutes');if(r)r.value=String(e.reminderMinutes||60);}
-async function deleteEvent(id){if(!confirm('Excluir este confronto em todos os dispositivos?'))return;try{markWriting();await deleteDoc(doc(db,"events",id));}catch(err){syncError(err);}}
+
+document.getElementById('cancelEventEdit').onclick=()=>{
+  eventForm.reset();
+  document.getElementById('eventId').value='';
+  if(matchAlert) matchAlert.value='60';
+  if(customAlertTime) customAlertTime.value='';
+  updateCustomAlertVisibility();
+};
+
+function editEvent(id){
+  const e=state.events.find(x=>x.id===id);
+  if(!e)return;
+
+  document.getElementById('eventId').value=e.id;
+  document.getElementById('opponentName').value=e.opponent||'';
+  document.getElementById('matchDate').value=e.date||'';
+  document.getElementById('matchTime').value=e.time||'';
+  document.getElementById('matchLocation').value=e.location||'';
+
+  if(matchAlert) matchAlert.value=String(e.alertValue||'60');
+  if(customAlertTime) customAlertTime.value=e.customAlertTime||'';
+  updateCustomAlertVisibility();
+
+  document.querySelector('[data-page="agenda"]')?.click();
+  eventForm.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+async function deleteEvent(id){
+  const e=state.events.find(x=>x.id===id);
+  if(!e)return;
+  if(!confirm('Excluir este confronto e cancelar a notificação agendada?'))return;
+
+  try{
+    markWriting();
+
+    if(e.notificationMessageId){
+      try{
+        await callPushWorker({
+          action:"cancel",
+          messageId:e.notificationMessageId
+        });
+      }catch(cancelErr){
+        console.warn('Não foi possível cancelar o alerta no OneSignal:',cancelErr);
+      }
+    }
+
+    await deleteDoc(doc(db,"events",id));
+    toast('Confronto excluído e alerta cancelado.');
+  }catch(err){
+    syncError(err);
+  }
+}
+
 function statusOf(e){if(e.goalsFor===''||e.goalsAgainst==='')return '';const a=Number(e.goalsFor),b=Number(e.goalsAgainst);return a>b?'VITÓRIA':a<b?'DERROTA':'EMPATE';}
 function renderEvents(){
   const sorted=[...state.events].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
@@ -802,7 +913,7 @@ document.getElementById('migrateBtn').onclick=async()=>{
     for(const e of old.events||[]){
       await setDoc(doc(db,"events",e.id||uid()),{
         opponent:e.opponent||'',logo:e.logo||'',date:e.date||'',time:e.time||'',location:e.location||'',
-        reminderMinutes:Number(e.reminderMinutes)||60,goalsFor:e.goalsFor??'',goalsAgainst:e.goalsAgainst??'',updatedAt:serverTimestamp()
+        goalsFor:e.goalsFor??'',goalsAgainst:e.goalsAgainst??'',updatedAt:serverTimestamp()
       },{merge:true});
     }
     if(old.teamLogo) await setDoc(doc(db,"settings","team"),{teamLogo:old.teamLogo,updatedAt:serverTimestamp()},{merge:true});

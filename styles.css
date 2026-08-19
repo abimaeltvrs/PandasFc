@@ -1005,3 +1005,32 @@ select option{
 }
 .push-status.ok{color:#78e59a}
 .push-status.err{color:#ff9a9a}
+
+
+/* =========================================================
+   ALERTAS ANTECIPADOS — AGENDA
+   ========================================================= */
+.alert-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  margin-top:7px;
+  padding:5px 9px;
+  border-radius:999px;
+  background:rgba(8,127,193,.18);
+  border:1px solid rgba(20,168,245,.35);
+  color:#bce8ff;
+  font-size:12px;
+  font-weight:700;
+}
+
+#customAlertWrap.hidden{
+  display:none !important;
+}
+
+#matchAlert,
+#customAlertTime{
+  width:100%;
+  max-width:100%;
+  box-sizing:border-box;
+}
