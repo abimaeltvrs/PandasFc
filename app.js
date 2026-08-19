@@ -298,7 +298,21 @@ document.getElementById('teamLogoInput').addEventListener('change',async e=>{
     toast('Logo atualizada e sincronizada.');
   }catch(err){syncError(err);}
 });
-function renderLogo(){const img=document.getElementById('dashboardLogo'),ph=document.getElementById('dashboardPlaceholder');if(state.teamLogo){img.src=state.teamLogo;img.classList.remove('hidden');ph.classList.add('hidden');}else{img.classList.add('hidden');ph.classList.remove('hidden');}}
+function renderLogo(){
+  const img=document.getElementById('dashboardLogo');
+  const ph=document.getElementById('dashboardPlaceholder');
+  const headerImg=document.getElementById('headerLogo');
+  const headerFallback=document.getElementById('headerLogoFallback');
+  if(state.teamLogo){
+    img.src=state.teamLogo; img.classList.remove('hidden'); ph.classList.add('hidden');
+    if(headerImg){headerImg.src=state.teamLogo;headerImg.classList.remove('hidden');}
+    if(headerFallback)headerFallback.classList.add('hidden');
+  }else{
+    img.classList.add('hidden'); ph.classList.remove('hidden');
+    if(headerImg)headerImg.classList.add('hidden');
+    if(headerFallback)headerFallback.classList.remove('hidden');
+  }
+}
 
 document.getElementById('clearDataBtn').onclick=async()=>{
   if(!confirm('Apagar jogadores, partidas, escalação e logo do Firebase? Isso afetará todos os dispositivos.'))return;
