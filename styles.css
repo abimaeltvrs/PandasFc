@@ -590,3 +590,209 @@ select option{
     background:transparent !important;
   }
 }
+
+/* =========================================================
+   AJUSTE VISUAL DESKTOP / WEB
+   Mantém o comportamento móvel já existente.
+   ========================================================= */
+
+@media (min-width: 901px){
+
+  html, body{
+    width:100%;
+    min-height:100%;
+  }
+
+  /* Cabeçalho mais proporcional no computador */
+  .topbar.header-art{
+    position:relative !important;
+    top:auto !important;
+    width:100%;
+    height:190px !important;
+    min-height:190px !important;
+    max-height:190px !important;
+    overflow:hidden;
+    padding:0 !important;
+  }
+
+  .header-art-image{
+    width:100% !important;
+    height:190px !important;
+    max-height:none !important;
+    object-fit:cover !important;
+    object-position:center 46% !important;
+  }
+
+  .header-art-actions{
+    top:14px !important;
+    right:18px !important;
+    z-index:10;
+  }
+
+  /* Estrutura principal */
+  .layout{
+    display:grid !important;
+    grid-template-columns:240px minmax(0,1fr) !important;
+    align-items:start !important;
+    min-height:calc(100vh - 190px) !important;
+    width:100% !important;
+  }
+
+  /* Menu lateral completo e fixo enquanto rola */
+  .sidebar{
+    position:sticky !important;
+    top:16px !important;
+    width:240px !important;
+    height:calc(100vh - 32px) !important;
+    max-height:calc(100vh - 32px) !important;
+    padding:16px 12px !important;
+    overflow-y:auto !important;
+    overflow-x:hidden !important;
+    border-right:1px solid rgba(47,161,255,.18);
+    box-shadow:8px 0 24px rgba(0,0,0,.12);
+    z-index:20 !important;
+  }
+
+  .nav-btn{
+    width:100% !important;
+    min-height:48px !important;
+    flex:0 0 auto !important;
+    padding:11px 13px !important;
+    font-size:14px !important;
+    border-radius:10px !important;
+    display:flex !important;
+    align-items:center !important;
+    white-space:normal !important;
+  }
+
+  /* Área principal centralizada */
+  .content{
+    width:100% !important;
+    max-width:1500px !important;
+    margin:0 auto !important;
+    padding:28px 34px 50px !important;
+    min-width:0 !important;
+  }
+
+  /* Corrige o Dashboard que estava extrapolando no desktop */
+  #dashboard{
+    margin:0 !important;
+    width:100% !important;
+    min-height:auto !important;
+    border-radius:18px;
+    overflow:hidden;
+  }
+
+  #dashboard .dashboard-logo-wrap{
+    width:100% !important;
+    min-height:auto !important;
+    display:block !important;
+  }
+
+  #dashboard .dashboard-media-stage{
+    width:100% !important;
+    height:auto !important;
+    min-height:520px !important;
+    max-height:760px !important;
+    aspect-ratio:16 / 9;
+    border-radius:18px !important;
+    background:#000 !important;
+    overflow:hidden !important;
+  }
+
+  /* Vídeos e imagens ocupam a área de forma proporcional */
+  #dashboard .dashboard-media,
+  #dashboard .dashboard-media-stage video.dashboard-media{
+    width:100% !important;
+    height:100% !important;
+    max-width:none !important;
+    max-height:none !important;
+    object-fit:contain !important;
+    border-radius:18px !important;
+    background:#000 !important;
+  }
+
+  #dashboard .dashboard-frame{
+    width:100% !important;
+    height:100% !important;
+    max-width:none !important;
+    max-height:none !important;
+    border-radius:18px !important;
+  }
+
+  #dashboard .dashboard-logo{
+    max-width:520px !important;
+    max-height:520px !important;
+  }
+
+  /* Grades e formulários mais confortáveis no desktop */
+  .form-grid{
+    grid-template-columns:repeat(3,minmax(180px,1fr)) !important;
+    align-items:end;
+  }
+
+  .agenda-grid{
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important;
+    gap:22px !important;
+  }
+
+  .lineup-layout{
+    grid-template-columns:320px minmax(0,1fr) !important;
+    gap:22px !important;
+    align-items:start;
+  }
+
+  .field-card{
+    display:flex;
+    justify-content:center;
+    overflow:hidden;
+  }
+
+  .soccer-field{
+    width:min(100%,680px) !important;
+    max-height:78vh;
+  }
+
+  .stats-grid{
+    grid-template-columns:repeat(4,minmax(150px,1fr)) !important;
+    gap:16px !important;
+  }
+
+  .card{
+    border-radius:16px !important;
+  }
+
+  .page-header{
+    margin-bottom:20px !important;
+  }
+
+  .page-header h2{
+    font-size:28px !important;
+  }
+
+  /* Evita páginas muito largas em monitores grandes */
+  .page:not(#dashboard){
+    max-width:1280px;
+    margin-left:auto;
+    margin-right:auto;
+  }
+}
+
+/* Monitores grandes */
+@media (min-width: 1500px){
+  .content{
+    padding-left:48px !important;
+    padding-right:48px !important;
+  }
+
+  .topbar.header-art,
+  .header-art-image{
+    height:210px !important;
+    min-height:210px !important;
+    max-height:210px !important;
+  }
+
+  .layout{
+    min-height:calc(100vh - 210px) !important;
+  }
+}

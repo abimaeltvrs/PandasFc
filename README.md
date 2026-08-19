@@ -103,3 +103,14 @@ O botão Gerar arte agora usa `background-partida-pandas.png` como fundo profiss
 A imagem `app-background.png` agora é utilizada como fundo visual em todas as telas do aplicativo.
 
 Os cards, formulários e listas usam transparência escura para manter a leitura e deixar o padrão do PANDAS FC visível ao fundo.
+
+## Ajuste desktop
+
+A versão Web/Desktop agora possui:
+- cabeçalho mais baixo e proporcional;
+- menu lateral completo e fixo;
+- conteúdo centralizado;
+- Dashboard em proporção 16:9;
+- vídeo/imagem sem estourar a tela;
+- formulários, Agenda, Estatísticas e Escalação adaptados para monitores;
+- versão mobile preservada.

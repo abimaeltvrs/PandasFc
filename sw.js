@@ -1,4 +1,4 @@
-const CACHE='pandas-fc-v19-global-background';
+const CACHE='pandas-fc-v20-desktop-layout';
 
 // Somente o shell essencial é pré-carregado.
 // Imagens grandes como cabeçalho e campo serão armazenadas sob demanda.
