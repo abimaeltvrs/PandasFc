@@ -94,3 +94,6 @@ No desktop, o menu permanece fixo na lateral.
 - Em modo instalado/standalone, o botão permanece oculto.
 - O Service Worker agora pré-carrega somente os arquivos essenciais.
 - As imagens grandes (`header-pandas-fc.png` e `campo-pandas-fc.png`) são armazenadas apenas quando utilizadas, acelerando a instalação inicial.
+
+## Arte da Agenda
+O botão Gerar arte agora usa `background-partida-pandas.png` como fundo profissional.

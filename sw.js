@@ -1,4 +1,4 @@
-const CACHE='pandas-fc-v17-fast-install';
+const CACHE='pandas-fc-v18-agenda-background';
 
 // Somente o shell essencial é pré-carregado.
 // Imagens grandes como cabeçalho e campo serão armazenadas sob demanda.
@@ -9,7 +9,8 @@ const SHELL=[
   './app.js',
   './manifest.webmanifest',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  './background-partida-pandas.png'
 ];
 
 self.addEventListener('install',event=>{

@@ -344,15 +344,103 @@ async function setScore(id,key,v){
 function formatDate(s){if(!s)return'';const [y,m,d]=s.split('-');return `${d}/${m}/${y}`;}
 
 async function generatePoster(id){
- const e=state.events.find(x=>x.id===id);if(!e)return;
- const c=document.createElement('canvas');c.width=1080;c.height=1350;const x=c.getContext('2d');
- const g=x.createLinearGradient(0,0,1080,1350);g.addColorStop(0,'#080808');g.addColorStop(1,'#363636');x.fillStyle=g;x.fillRect(0,0,1080,1350);
- x.fillStyle='#fff';x.textAlign='center';x.font='bold 54px Arial';x.fillText('DIA DE JOGO',540,130);x.font='bold 42px Arial';x.fillText('PANDAS FC',300,560);x.fillText(e.opponent,780,560);x.font='bold 70px Arial';x.fillText('X',540,560);
- x.font='bold 36px Arial';x.fillText(`${formatDate(e.date)} • ${e.time}`,540,850);x.font='32px Arial';x.fillText(e.location,540,910);
- if(state.teamLogo){try{const im=await loadImage(state.teamLogo);drawContain(x,im,150,260,300,220);}catch{}}
- else {x.font='150px Arial';x.fillText('🐼',300,430);}
- if(e.logo){try{const im=await loadImage(e.logo);drawContain(x,im,630,260,300,220);}catch{}}
- downloadCanvas(c,`pandas-fc-x-${e.opponent.replace(/\s+/g,'-').toLowerCase()}.png`);
+  const e=state.events.find(x=>x.id===id);
+  if(!e)return;
+
+  const c=document.createElement('canvas');
+  c.width=1080;
+  c.height=1920;
+  const x=c.getContext('2d');
+
+  try{
+    const bg=await loadImage('./background-partida-pandas.png');
+    const scale=Math.max(c.width/bg.width,c.height/bg.height);
+    const w=bg.width*scale;
+    const h=bg.height*scale;
+    const dx=(c.width-w)/2;
+    const dy=(c.height-h)/2;
+    x.drawImage(bg,dx,dy,w,h);
+  }catch(err){
+    const g=x.createLinearGradient(0,0,1080,1920);
+    g.addColorStop(0,'#03182a');
+    g.addColorStop(1,'#07101b');
+    x.fillStyle=g;
+    x.fillRect(0,0,c.width,c.height);
+  }
+
+  x.fillStyle='rgba(0,12,28,.72)';
+  x.roundRect(90,500,900,760,34);
+  x.fill();
+
+  x.textAlign='center';
+  x.fillStyle='#ffffff';
+  x.font='bold 62px Arial';
+  x.fillText('DIA DE JOGO',540,590);
+
+  x.fillStyle='#14a8f5';
+  x.font='bold 28px Arial';
+  x.fillText('PANDAS FUTEBOL CLUBE',540,640);
+
+  const logoY=710, logoW=280, logoH=280;
+
+  if(state.teamLogo){
+    try{
+      const im=await loadImage(state.teamLogo);
+      drawContain(x,im,120,logoY,logoW,logoH);
+    }catch{}
+  }else{
+    x.font='170px Arial';
+    x.fillStyle='#fff';
+    x.fillText('🐼',260,900);
+  }
+
+  if(e.logo){
+    try{
+      const im=await loadImage(e.logo);
+      drawContain(x,im,680,logoY,logoW,logoH);
+    }catch{}
+  }
+
+  x.fillStyle='#14a8f5';
+  x.font='bold 72px Arial';
+  x.fillText('X',540,865);
+
+  x.fillStyle='#ffffff';
+  x.font='bold 34px Arial';
+  x.fillText('PANDAS FC',260,1045);
+
+  const opponentName=String(e.opponent||'ADVERSÁRIO').toUpperCase();
+  x.fillText(opponentName.length>18 ? opponentName.slice(0,18) : opponentName,820,1045);
+
+  x.fillStyle='rgba(0,12,28,.86)';
+  x.roundRect(145,1310,790,340,28);
+  x.fill();
+
+  x.fillStyle='#ffffff';
+  x.font='bold 42px Arial';
+  x.fillText(`${formatDate(e.date)} • ${e.time}`,540,1410);
+
+  x.fillStyle='#14a8f5';
+  x.font='bold 30px Arial';
+  x.fillText('LOCAL DA PARTIDA',540,1490);
+
+  x.fillStyle='#ffffff';
+  x.font='30px Arial';
+  const location=String(e.location||'').toUpperCase();
+  x.fillText(location.length>34 ? location.slice(0,34) : location,540,1545);
+
+  x.fillStyle='#14a8f5';
+  x.font='bold 24px Arial';
+  x.fillText('DISCIPLINA • UNIÃO • PAIXÃO',540,1770);
+
+  x.fillStyle='#ffffff';
+  x.font='20px Arial';
+  x.fillText('JOGO A JOGO, SONHO A SONHO.',540,1810);
+
+  downloadCanvas(
+    c,
+    `pandas-fc-x-${e.opponent.replace(/\s+/g,'-').toLowerCase()}.png`
+  );
 }
 function loadImage(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src;});}
 function drawContain(ctx,img,x,y,w,h){const r=Math.min(w/img.width,h/img.height),nw=img.width*r,nh=img.height*r;ctx.drawImage(img,x+(w-nw)/2,y+(h-nh)/2,nw,nh);}
