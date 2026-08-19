@@ -438,3 +438,155 @@ button:focus-visible{
     padding:6px 8px !important;
   }
 }
+
+/* =========================================================
+   BACKGROUND GLOBAL PANDAS FC
+   ========================================================= */
+
+html{
+  background:#020b18;
+}
+
+body{
+  background:
+    linear-gradient(rgba(1,9,20,.18),rgba(1,9,20,.18)),
+    url('./app-background.png') center center / cover fixed no-repeat !important;
+  color:#eef6ff;
+}
+
+/* Mantém o conteúdo legível sem esconder a arte */
+.content{
+  background:transparent !important;
+}
+
+/* Todas as páginas usam o background global */
+.page{
+  background:transparent;
+}
+
+/* Cards com efeito vidro */
+.card,
+.stat-card{
+  background:rgba(3,18,35,.88) !important;
+  color:#eef6ff !important;
+  border:1px solid rgba(47,161,255,.22) !important;
+  box-shadow:0 8px 28px rgba(0,0,0,.26) !important;
+  backdrop-filter:blur(7px);
+  -webkit-backdrop-filter:blur(7px);
+}
+
+/* Textos secundários */
+.muted,
+.page-header p,
+.card p{
+  color:#b8cce0 !important;
+}
+
+/* Títulos */
+.page-header h2,
+.card h3,
+.card strong,
+label{
+  color:#ffffff;
+}
+
+/* Campos */
+input,
+select,
+textarea,
+.search,
+.form-grid input,
+.form-grid select,
+.config-grid input,
+.config-section select{
+  background:rgba(4,20,38,.93) !important;
+  color:#ffffff !important;
+  border:1px solid rgba(65,170,255,.30) !important;
+}
+
+input::placeholder,
+textarea::placeholder{
+  color:#8ea5ba !important;
+}
+
+select option{
+  background:#071927;
+  color:#fff;
+}
+
+/* Linhas e itens das listas */
+.list-row,
+.check-item{
+  background:rgba(3,18,35,.72);
+  border-color:rgba(56,159,245,.20) !important;
+}
+
+/* Configurações */
+.config-section{
+  background:rgba(3,18,35,.84) !important;
+  border-color:rgba(56,159,245,.22) !important;
+}
+
+/* Agenda / calendário */
+.calendar .day{
+  background:rgba(4,20,38,.72);
+  border-color:rgba(56,159,245,.18) !important;
+  color:#eaf6ff;
+}
+
+.calendar .dow{
+  color:#9ccfff !important;
+}
+
+.calendar .has-event{
+  background:#087fc1 !important;
+  color:#fff !important;
+}
+
+/* Menu */
+.sidebar{
+  background:rgba(2,12,25,.96) !important;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+
+/* Cabeçalho mantém destaque */
+.topbar{
+  background:rgba(1,10,22,.96) !important;
+}
+
+/* Escalação preserva a arte própria */
+.field-card{
+  background:rgba(2,12,25,.92) !important;
+}
+
+/* Dashboard:
+   quando há mídia, ela continua preenchendo toda a área;
+   quando não há mídia, mostra o background global escurecido */
+#dashboard{
+  background:
+    linear-gradient(rgba(0,0,0,.25),rgba(0,0,0,.25)),
+    url('./app-background.png') center center / cover no-repeat !important;
+}
+
+#dashboard .dashboard-media-stage{
+  background:transparent !important;
+}
+
+#dashboard .logo-placeholder{
+  color:#fff !important;
+  text-shadow:0 2px 12px rgba(0,0,0,.8);
+}
+
+/* Evita faixa branca no mobile */
+@media(max-width:900px){
+  body{
+    background:
+      linear-gradient(rgba(1,9,20,.18),rgba(1,9,20,.18)),
+      url('./app-background.png') center center / cover fixed no-repeat !important;
+  }
+
+  .content{
+    background:transparent !important;
+  }
+}

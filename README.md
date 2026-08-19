@@ -97,3 +97,9 @@ No desktop, o menu permanece fixo na lateral.
 
 ## Arte da Agenda
 O botão Gerar arte agora usa `background-partida-pandas.png` como fundo profissional.
+
+## Background global
+
+A imagem `app-background.png` agora é utilizada como fundo visual em todas as telas do aplicativo.
+
+Os cards, formulários e listas usam transparência escura para manter a leitura e deixar o padrão do PANDAS FC visível ao fundo.

@@ -1,4 +1,4 @@
-const CACHE='pandas-fc-v18-agenda-background';
+const CACHE='pandas-fc-v19-global-background';
 
 // Somente o shell essencial é pré-carregado.
 // Imagens grandes como cabeçalho e campo serão armazenadas sob demanda.
@@ -10,6 +10,7 @@ const SHELL=[
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
+  './app-background.png',
   './background-partida-pandas.png'
 ];
 
