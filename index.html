@@ -17,9 +17,23 @@
   <script>
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     window.OneSignalDeferred.push(async function(OneSignal) {
+      // Remove apenas registros antigos criados com caminho duplicado /PandasFc/PandasFc/
+      if ("serviceWorker" in navigator) {
+        try {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          for (const reg of regs) {
+            if (reg.scope && reg.scope.includes("/PandasFc/PandasFc/")) {
+              await reg.unregister();
+            }
+          }
+        } catch (e) {
+          console.warn("Não foi possível limpar service worker antigo:", e);
+        }
+      }
+
       await OneSignal.init({
         appId: "ad62bcf9-471a-499b-b65c-b7a11727b943",
-        serviceWorkerPath: "PandasFc/push/onesignal/OneSignalSDKWorker.js",
+        serviceWorkerPath: "/PandasFc/push/onesignal/OneSignalSDKWorker.js",
         serviceWorkerParam: { scope: "/PandasFc/push/onesignal/" },
         notifyButton: { enable: false },
         welcomeNotification: { disable: true }
