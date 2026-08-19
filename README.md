@@ -74,3 +74,17 @@ git push -u origin main
 - Formação tática configurável (4-3-3, 4-4-2 etc.).
 - Personalização das artes geradas.
 - Publicação como PWA e na Google Play.
+
+## Publicar no GitHub Pages
+
+Este projeto já vem preparado para o repositório **PandasFc** e para o endereço:
+
+`https://abimaeltvrs.github.io/PandasFc/`
+
+1. Envie todos os arquivos para a branch `main`, incluindo a pasta `.github/workflows`.
+2. No GitHub, abra **Settings > Pages**.
+3. Em **Build and deployment > Source**, selecione **GitHub Actions**.
+4. Abra a aba **Actions** e aguarde o workflow **Deploy PANDAS FC to GitHub Pages** concluir.
+5. Acesse o endereço acima e, se necessário, atualize a página com `Ctrl + F5`.
+
+O comando usado pelo GitHub é `npm run build:github`, que configura automaticamente o caminho `/PandasFc/`. O build normal (`npm run build`) continua usando caminhos relativos para manter compatibilidade com o Capacitor/Android.
