@@ -121,3 +121,27 @@
     padding:7px 10px;
   }
 }
+
+/* Ações selecionadas/ativas em azul */
+:root{--pandas-blue:#087fc1;--pandas-blue-dark:#06679d}
+.nav-btn:hover,.nav-btn.active{
+  background:var(--pandas-blue);
+  color:#fff;
+}
+.primary,
+.actions button:active,
+.actions button:focus,
+.ghost:active,
+.ghost:focus{
+  background:var(--pandas-blue);
+  color:#fff;
+}
+.primary:hover,
+.nav-btn.active:hover{
+  background:var(--pandas-blue-dark);
+  color:#fff;
+}
+button:focus-visible{
+  outline:3px solid rgba(8,127,193,.30);
+  outline-offset:2px;
+}
