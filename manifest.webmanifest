@@ -1,0 +1,10 @@
+{
+  "name": "PANDAS FC",
+  "short_name": "PANDAS FC",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#111111",
+  "description": "Aplicativo oficial do PANDAS FC"
+}

@@ -1,74 +1,41 @@
-const STORAGE_KEY = 'pandas-fc-state-v2';
-const initialState = { players: [], matches: [], teamLogo: '', teamName: 'PANDAS FC' };
-let state = loadState();
-let screen = 'dashboard';
-let selected = [];
-let query = '';
+let deferredPrompt;
+const installBtn = document.getElementById('installBtn');
+const installHint = document.getElementById('installHint');
 
-const menu = [
-  ['dashboard','🐼','Início / Dashboard'],
-  ['players','👤','Cadastro de Jogadores'],
-  ['squad','📋','Elenco'],
-  ['lineup','⚽','Escalação'],
-  ['matches','⚽','Partidas'],
-  ['agenda','📅','Agenda'],
-  ['stats','📊','Estatísticas'],
-  ['scorers','🏆','Artilharia'],
-  ['settings','⚙️','Configurações']
-];
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  deferredPrompt = event;
+  installBtn.hidden = false;
+  if (installHint) {
+    installHint.textContent = 'Este dispositivo permite instalar o PANDAS FC como aplicativo.';
+  }
+});
 
-function loadState(){ try { return {...initialState, ...JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}')}; } catch { return {...initialState}; } }
-function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); render(); }
-function uid(){ return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`; }
-function escapeHtml(v=''){ return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
-function resultOf(m){ if(m.pandasGoals==null||m.opponentGoals==null)return 'AGENDADA'; if(m.pandasGoals>m.opponentGoals)return 'VITÓRIA'; if(m.pandasGoals<m.opponentGoals)return 'DERROTA'; return 'EMPATE'; }
-function statusClass(s){ return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
-function dateBR(d){ if(!d)return ''; return new Date(`${d}T12:00:00`).toLocaleDateString('pt-BR'); }
-function fileToDataUrl(file){ return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result));r.onerror=reject;r.readAsDataURL(file);}); }
+installBtn.addEventListener('click', async () => {
+  if (!deferredPrompt) {
+    alert('A instalação ainda não está disponível neste navegador. No Android/Chrome, abra o menu do navegador e procure por “Instalar app” ou “Adicionar à tela inicial”.');
+    return;
+  }
 
-function positionCoords(position,index,total){ const p=position.toLowerCase(); if(p.includes('gol'))return{x:50,y:88}; if(p.includes('zag'))return{x:35+(index%3)*15,y:70}; if(p.includes('lat'))return{x:index%2?82:18,y:64}; if(p.includes('vol'))return{x:50+(index%2?15:-15),y:54}; if(p.includes('mei'))return{x:30+(index%3)*20,y:42}; if(p.includes('pont'))return{x:index%2?80:20,y:25}; if(p.includes('ata')||p.includes('cent'))return{x:50+((index%3)-1)*20,y:18}; const angle=(index/Math.max(total,1))*Math.PI*2;return{x:50+Math.cos(angle)*28,y:50+Math.sin(angle)*28}; }
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
 
-function render(){
-  document.getElementById('app').innerHTML = `<div class="app"><aside class="sidebar"><div class="brand">${logoHtml(true)}<span>PANDAS FC</span></div><nav class="nav">${menu.map(([id,icon,label])=>`<button class="${screen===id?'active':''}" data-screen="${id}"><span class="emoji">${icon}</span><span>${label}</span></button>`).join('')}</nav></aside><main class="content">${content()}</main></div>`;
-  document.querySelectorAll('[data-screen]').forEach(b=>b.onclick=()=>{screen=b.dataset.screen;render();});
-  bindScreen();
+  if (outcome === 'accepted') {
+    installBtn.hidden = true;
+  }
+
+  deferredPrompt = null;
+});
+
+window.addEventListener('appinstalled', () => {
+  installBtn.hidden = true;
+  if (installHint) {
+    installHint.textContent = 'PANDAS FC instalado com sucesso.';
+  }
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js');
+  });
 }
-function logoHtml(compact=false){ if(state.teamLogo)return `<img class="${compact?'brand-logo':'main-logo'}" src="${state.teamLogo}" alt="Logo PANDAS FC">`; return `<div class="${compact?'brand-placeholder':'logo-placeholder'}">🐼</div>`; }
-function panel(title,body){ return `<section class="panel"><h1>${title}</h1>${body}</section>`; }
-
-function content(){
-  if(screen==='dashboard') return `<section class="hero">${logoHtml(false)}</section>`;
-  if(screen==='players') return panel('Cadastro de Jogadores',`<form id="playerForm" class="form"><input name="name" placeholder="Nome do jogador" required><select name="position" required><option value="">Selecione a posição</option><option>Goleiro</option><option>Zagueiro</option><option>Lateral</option><option>Volante</option><option>Meio-campo</option><option>Ponta</option><option>Atacante</option></select><input name="number" placeholder="Número" inputmode="numeric" required><button>Cadastrar jogador</button></form>`);
-  if(screen==='squad'){ const list=state.players.filter(p=>`${p.name} ${p.position} ${p.number}`.toLowerCase().includes(query.toLowerCase())); return panel('Elenco',`<div class="search">🔎<input id="search" value="${escapeHtml(query)}" placeholder="Pesquisar nome, posição ou número"></div><div class="cards">${list.length?list.map(p=>`<div class="player-card"><b>#${escapeHtml(p.number)} ${escapeHtml(p.name)}</b><span>${escapeHtml(p.position)}</span><button class="danger" data-delete-player="${p.id}">Excluir</button></div>`).join(''):'<p class="empty">Nenhum jogador cadastrado.</p>'}</div>`); }
-  if(screen==='lineup'){ const chosen=state.players.filter(p=>selected.includes(p.id)); return panel('Escalação',`<div class="lineup-layout"><div class="pitch">${chosen.map((p,i)=>{const pos=positionCoords(p.position,i,chosen.length);return `<div class="field-player" style="left:${pos.x}%;top:${pos.y}%"><i>${escapeHtml(p.number)}</i><small>${escapeHtml(p.name)}</small></div>`}).join('')}</div><div><h3>Selecione os jogadores</h3>${state.players.length?state.players.map(p=>`<label class="check"><input type="checkbox" data-select-player="${p.id}" ${selected.includes(p.id)?'checked':''}><span>#${escapeHtml(p.number)} ${escapeHtml(p.name)} <small>(${escapeHtml(p.position)})</small></span></label>`).join(''):'<p class="empty">Cadastre jogadores primeiro.</p>'}<p><button id="generateLineup" ${chosen.length?'':'disabled'}>Gerar imagem da escalação</button></p></div></div>`); }
-  if(screen==='agenda') return panel('Agenda',`<form id="matchForm" class="form"><div class="fixed-team">🐼 Time A: <b>PANDAS FC</b></div><input name="opponent" placeholder="Nome do adversário" required><label class="file">📎 Logo do adversário<input name="logo" type="file" accept="image/*"></label><input name="date" type="date" required><input name="time" type="time" required><input name="location" placeholder="Local da partida" required><button>Agendar confronto</button></form><div class="calendar-list"><h3>Próximos confrontos</h3>${matchList(state.matches,true)}</div>`);
-  if(screen==='matches') return panel('Partidas',`<div class="cards">${state.matches.length?state.matches.map(m=>`<div class="match-card"><div><b>PANDAS FC</b> × <b>${escapeHtml(m.opponent)}</b><small>${dateBR(m.date)} • ${escapeHtml(m.time)} ${m.location?`• ${escapeHtml(m.location)}`:''}</small></div><div class="score"><input type="number" min="0" value="${m.pandasGoals??''}" data-score="pandasGoals" data-id="${m.id}" placeholder="0"><b>x</b><input type="number" min="0" value="${m.opponentGoals??''}" data-score="opponentGoals" data-id="${m.id}" placeholder="0"></div><span class="status ${statusClass(resultOf(m))}">${resultOf(m)}</span></div>`).join(''):'<p class="empty">Nenhuma partida cadastrada.</p>'}</div>`);
-  if(screen==='stats'){ const done=state.matches.filter(m=>m.pandasGoals!=null&&m.opponentGoals!=null); const wins=done.filter(m=>resultOf(m)==='VITÓRIA').length,draws=done.filter(m=>resultOf(m)==='EMPATE').length,losses=done.length-wins-draws,gf=done.reduce((a,m)=>a+(m.pandasGoals||0),0),ga=done.reduce((a,m)=>a+(m.opponentGoals||0),0),pts=wins*3+draws; const items=[['Jogos',done.length],['Vitórias',wins],['Empates',draws],['Derrotas',losses],['Gols marcados',gf],['Gols sofridos',ga],['Saldo',gf-ga],['Aproveitamento',done.length?`${Math.round((pts/(done.length*3))*100)}%`:'0%']]; return panel('Estatísticas',`<div class="stats-grid">${items.map(([a,b])=>`<div class="stat"><strong>${b}</strong><span>${a}</span></div>`).join('')}</div><h3>Histórico</h3>${matchList(done,false)}`); }
-  if(screen==='scorers'){ const sorted=[...state.players].sort((a,b)=>b.goals-a.goals); return panel('Artilharia',`<div class="ranking">${sorted.length?sorted.map((p,i)=>`<div class="rank"><b>${i+1}º</b><span>#${escapeHtml(p.number)} ${escapeHtml(p.name)}</span><div class="rank-actions"><button data-goal="-1" data-id="${p.id}">−</button><strong>${p.goals} gols</strong><button data-goal="1" data-id="${p.id}">+</button></div></div>`).join(''):'<p class="empty">Nenhum jogador cadastrado.</p>'}</div>`); }
-  return panel('Configurações',`<div class="form"><label>Nome do time<input id="teamName" value="${escapeHtml(state.teamName)}"></label><label class="file">📎 Enviar logo do PANDAS FC<input id="teamLogo" type="file" accept="image/*"></label>${state.teamLogo?`<img class="logo-preview" src="${state.teamLogo}" alt="Logo">`:''}<button id="notifyPermission">Ativar notificações no navegador</button><button class="danger" id="clearAll">Apagar todos os dados</button><p class="muted">No Android, a notificação em segundo plano será habilitada na versão empacotada do aplicativo.</p></div>`);
-}
-function matchList(matches,poster){ return `<div class="cards">${matches.length?matches.map(m=>`<div class="fixture"><div><b>PANDAS FC × ${escapeHtml(m.opponent)}</b><small>${dateBR(m.date)} • ${escapeHtml(m.time)} ${m.location?`• ${escapeHtml(m.location)}`:''}</small></div>${poster?`<button data-poster="${m.id}">Gerar arte</button>`:''}</div>`).join(''):'<p class="empty">Nenhuma partida cadastrada.</p>'}</div>`; }
-
-function bindScreen(){
-  const pf=document.getElementById('playerForm'); if(pf)pf.onsubmit=e=>{e.preventDefault();const f=new FormData(pf);state.players.push({id:uid(),name:String(f.get('name')).trim(),position:String(f.get('position')),number:String(f.get('number')).trim(),goals:0});saveState();};
-  const search=document.getElementById('search'); if(search)search.oninput=e=>{query=e.target.value;render();setTimeout(()=>{const s=document.getElementById('search');s?.focus();s?.setSelectionRange(query.length,query.length)},0)};
-  document.querySelectorAll('[data-delete-player]').forEach(b=>b.onclick=()=>{state.players=state.players.filter(p=>p.id!==b.dataset.deletePlayer);selected=selected.filter(id=>id!==b.dataset.deletePlayer);saveState();});
-  document.querySelectorAll('[data-select-player]').forEach(c=>c.onchange=()=>{const id=c.dataset.selectPlayer; selected=c.checked?[...new Set([...selected,id])]:selected.filter(x=>x!==id);render();});
-  const gl=document.getElementById('generateLineup'); if(gl)gl.onclick=generateLineup;
-  const mf=document.getElementById('matchForm'); if(mf)mf.onsubmit=async e=>{e.preventDefault();const f=new FormData(mf);const file=f.get('logo');let logo='';if(file instanceof File&&file.size)logo=await fileToDataUrl(file);state.matches.push({id:uid(),opponent:String(f.get('opponent')).trim(),opponentLogo:logo,date:String(f.get('date')),time:String(f.get('time')),location:String(f.get('location')).trim()});saveState();scheduleWebReminder(state.matches.at(-1));};
-  document.querySelectorAll('[data-score]').forEach(i=>i.oninput=()=>{const m=state.matches.find(x=>x.id===i.dataset.id);if(m)m[i.dataset.score]=i.value===''?null:Number(i.value);localStorage.setItem(STORAGE_KEY,JSON.stringify(state));render();});
-  document.querySelectorAll('[data-goal]').forEach(b=>b.onclick=()=>{const p=state.players.find(x=>x.id===b.dataset.id);if(p)p.goals=Math.max(0,p.goals+Number(b.dataset.goal));saveState();});
-  document.querySelectorAll('[data-poster]').forEach(b=>b.onclick=()=>{const m=state.matches.find(x=>x.id===b.dataset.poster);if(m)generateMatchPoster(m);});
-  const tn=document.getElementById('teamName'); if(tn)tn.onchange=()=>{state.teamName=tn.value||'PANDAS FC';saveState();};
-  const tl=document.getElementById('teamLogo'); if(tl)tl.onchange=async()=>{const f=tl.files?.[0];if(f){state.teamLogo=await fileToDataUrl(f);saveState();}};
-  const np=document.getElementById('notifyPermission'); if(np)np.onclick=async()=>{if(!('Notification'in window))return alert('Este navegador não oferece notificações.');const p=await Notification.requestPermission();alert(p==='granted'?'Notificações ativadas.':'Permissão não concedida.');};
-  const ca=document.getElementById('clearAll'); if(ca)ca.onclick=()=>{if(confirm('Apagar todos os dados do aplicativo?')){state={...initialState};selected=[];localStorage.removeItem(STORAGE_KEY);render();}};
-}
-
-function drawImage(ctx,src,x,y,w,h){return new Promise(resolve=>{if(!src)return resolve();const img=new Image();img.onload=()=>{ctx.drawImage(img,x,y,w,h);resolve()};img.onerror=resolve;img.src=src;});}
-function downloadCanvas(canvas,name){const a=document.createElement('a');a.href=canvas.toDataURL('image/png');a.download=name;a.click();}
-async function generateLineup(){const chosen=state.players.filter(p=>selected.includes(p.id));const c=document.createElement('canvas');c.width=1080;c.height=1350;const ctx=c.getContext('2d');ctx.fillStyle='#07140d';ctx.fillRect(0,0,1080,1350);ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='bold 64px Arial';ctx.fillText('PANDAS FC',540,90);ctx.font='bold 42px Arial';ctx.fillText('ESCALAÇÃO DO DIA',540,145);const left=100,top=200,w=880,h=1050;ctx.fillStyle='#126b35';ctx.fillRect(left,top,w,h);ctx.strokeStyle='#fff';ctx.lineWidth=8;ctx.strokeRect(left,top,w,h);ctx.beginPath();ctx.moveTo(left,top+h/2);ctx.lineTo(left+w,top+h/2);ctx.stroke();ctx.beginPath();ctx.arc(left+w/2,top+h/2,110,0,Math.PI*2);ctx.stroke();chosen.forEach((p,i)=>{const pos=positionCoords(p.position,i,chosen.length),x=left+w*pos.x/100,y=top+h*pos.y/100;ctx.fillStyle='#080b10';ctx.beginPath();ctx.arc(x,y,48,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=4;ctx.stroke();ctx.fillStyle='#fff';ctx.font='bold 30px Arial';ctx.fillText(p.number,x,y+10);ctx.font='bold 25px Arial';ctx.fillText(p.name.toUpperCase(),x,y+82)});if(state.teamLogo)await drawImage(ctx,state.teamLogo,30,25,110,110);downloadCanvas(c,'pandas-fc-escalacao.png');}
-async function generateMatchPoster(m){const c=document.createElement('canvas');c.width=1080;c.height=1350;const ctx=c.getContext('2d');const g=ctx.createLinearGradient(0,0,1080,1350);g.addColorStop(0,'#050505');g.addColorStop(1,'#0e4f29');ctx.fillStyle=g;ctx.fillRect(0,0,1080,1350);ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='bold 56px Arial';ctx.fillText('DIA DE JOGO',540,150);if(state.teamLogo)await drawImage(ctx,state.teamLogo,160,330,260,260);else{ctx.font='bold 40px Arial';ctx.fillText('PANDAS FC',290,470)}if(m.opponentLogo)await drawImage(ctx,m.opponentLogo,660,330,260,260);else{ctx.font='bold 40px Arial';ctx.fillText(m.opponent.toUpperCase(),790,470)}ctx.font='bold 90px Arial';ctx.fillText('X',540,500);ctx.font='bold 42px Arial';ctx.fillText('PANDAS FC',290,650);ctx.fillText(m.opponent.toUpperCase(),790,650);ctx.font='bold 46px Arial';ctx.fillText(dateBR(m.date),540,825);ctx.font='bold 58px Arial';ctx.fillText(m.time,540,910);ctx.font='36px Arial';ctx.fillText(m.location||'Local a definir',540,990);downloadCanvas(c,`pandas-fc-${m.date}-${m.opponent.replace(/\s+/g,'-').toLowerCase()}.png`);}
-function scheduleWebReminder(m){if(!m||!('Notification'in window)||Notification.permission!=='granted')return;const at=new Date(`${m.date}T${m.time}:00`);const diff=at-Date.now();if(diff>0&&diff<2147483647)setTimeout(()=>new Notification('⚽ Hoje tem PANDAS FC!',{body:`PANDAS FC x ${m.opponent} • ${m.time} • ${m.location}`}),diff);}
-function checkToday(){if(!('Notification'in window)||Notification.permission!=='granted')return;const today=new Date().toISOString().slice(0,10);state.matches.filter(m=>m.date===today).forEach(m=>{const key=`notified-${m.id}`;if(!sessionStorage.getItem(key)){new Notification('⚽ Hoje tem PANDAS FC!',{body:`PANDAS FC x ${m.opponent} • ${m.time} • ${m.location}`});sessionStorage.setItem(key,'1')}});}
-render();checkToday();

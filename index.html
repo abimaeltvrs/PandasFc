@@ -3,12 +3,27 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#08110c" />
+  <meta name="theme-color" content="#111111" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
   <title>PANDAS FC</title>
-  <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <div id="app"></div>
-  <script src="./app.js" defer></script>
+  <header class="topbar">
+    <h1>PANDAS FC</h1>
+    <button id="installBtn" class="install-btn" hidden>📲 Instalar aplicativo</button>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>🐼 Início / Dashboard</h2>
+      <p>Aplicativo oficial do PANDAS FC.</p>
+      <p id="installHint" class="hint">
+        Quando o navegador permitir, o botão “Instalar aplicativo” aparecerá no topo.
+      </p>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
 </body>
 </html>
