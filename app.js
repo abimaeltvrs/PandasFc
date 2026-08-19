@@ -665,13 +665,81 @@ function checkTodayMatches(){
 }
 
 let deferredPrompt=null;
-window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;});
-async function installApp(){
- if(deferredPrompt){deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;return;}
- alert('Se a instalação automática não abrir, no Android use o menu ⋮ do Chrome e escolha “Instalar app” ou “Adicionar à tela inicial”. No computador, procure o ícone de instalação na barra de endereço do Chrome/Edge.');
+
+function isRunningInstalled(){
+  return window.matchMedia('(display-mode: standalone)').matches ||
+         window.matchMedia('(display-mode: fullscreen)').matches ||
+         window.navigator.standalone === true;
 }
-document.getElementById('installBtn').onclick=installApp;document.getElementById('installBtn2').onclick=installApp;
-window.addEventListener('appinstalled',()=>toast('PANDAS FC instalado com sucesso.'));
+
+function setInstallButtonsVisible(visible){
+  const b1=document.getElementById('installBtn');
+  const b2=document.getElementById('installBtn2');
+  if(b1) b1.style.display=visible ? '' : 'none';
+  if(b2) b2.style.display=visible ? '' : 'none';
+}
+
+function updateInstallUI(){
+  const installedFlag=localStorage.getItem('pandasfc_installed') === '1';
+
+  if(isRunningInstalled() || installedFlag){
+    setInstallButtonsVisible(false);
+    return;
+  }
+
+  // Antes do beforeinstallprompt, mantém oculto para não exibir um botão sem ação.
+  setInstallButtonsVisible(!!deferredPrompt);
+}
+
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  deferredPrompt=e;
+  updateInstallUI();
+});
+
+async function installApp(){
+  if(isRunningInstalled()){
+    localStorage.setItem('pandasfc_installed','1');
+    setInstallButtonsVisible(false);
+    return;
+  }
+
+  if(!deferredPrompt){
+    alert('A instalação automática ainda não foi liberada pelo navegador. Aguarde alguns segundos ou use o menu ⋮ do Chrome → “Instalar app”.');
+    return;
+  }
+
+  try{
+    deferredPrompt.prompt();
+    const result=await deferredPrompt.userChoice;
+
+    if(result.outcome === 'accepted'){
+      // Oculta imediatamente, sem esperar outra navegação.
+      localStorage.setItem('pandasfc_installed','1');
+      setInstallButtonsVisible(false);
+      toast('Instalação iniciada.');
+    }
+
+    deferredPrompt=null;
+    updateInstallUI();
+  }catch(err){
+    console.error('Erro ao instalar PWA:',err);
+  }
+}
+
+document.getElementById('installBtn').onclick=installApp;
+document.getElementById('installBtn2').onclick=installApp;
+
+window.addEventListener('appinstalled',()=>{
+  localStorage.setItem('pandasfc_installed','1');
+  deferredPrompt=null;
+  setInstallButtonsVisible(false);
+  toast('PANDAS FC instalado com sucesso.');
+});
+
+// Se o app for aberto em modo standalone, garante que o botão nunca apareça.
+window.matchMedia('(display-mode: standalone)').addEventListener?.('change',updateInstallUI);
+updateInstallUI();
 
 if('serviceWorker'in navigator){
   window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.error));

@@ -86,3 +86,11 @@ No celular, a barra horizontal permanece presa no topo.
 No celular e tablet, o menu agora fica permanentemente fixado na parte inferior da tela.
 Os itens podem ser deslizados horizontalmente, mas a barra não desaparece ao rolar a página.
 No desktop, o menu permanece fixo na lateral.
+
+## Instalação otimizada
+
+- O botão **Instalar aplicativo** fica oculto até o navegador informar que a PWA está pronta para instalação.
+- Ao aceitar a instalação, o botão desaparece imediatamente.
+- Em modo instalado/standalone, o botão permanece oculto.
+- O Service Worker agora pré-carrega somente os arquivos essenciais.
+- As imagens grandes (`header-pandas-fc.png` e `campo-pandas-fc.png`) são armazenadas apenas quando utilizadas, acelerando a instalação inicial.
