@@ -19,21 +19,23 @@
 
     window.OneSignalDeferred.push(async function(OneSignal) {
       /*
-       * PANDAS FC usa um único service worker:
-       *   /PandasFc/sw.js
+       * PANDAS FC usa dois service workers com escopos diferentes:
+       * PWA:       /PandasFc/sw.js              -> escopo /PandasFc/
+       * OneSignal: /PandasFc/push/onesignal/... -> escopo /PandasFc/push/onesignal/
        *
-       * Isso evita que o service worker do PWA e o do OneSignal
-       * disputem o controle do aplicativo instalado.
+       * Assim eles não disputam o mesmo escopo.
        */
       await OneSignal.init({
         appId: "ad62bcf9-471a-499b-b65c-b7a11727b943",
 
-        // OneSignal pede caminho relativo à raiz do domínio, sem "/" inicial.
-        serviceWorkerPath: "PandasFc/sw.js",
+        // OneSignal usa um worker SEPARADO do PWA.
+        // O caminho é relativo à raiz do domínio do GitHub Pages.
+        serviceWorkerPath: "PandasFc/push/onesignal/OneSignalSDKWorker.js",
 
-        // O mesmo escopo usado pelo PWA.
+        // Escopo próprio e diferente do sw.js do PWA.
+        // O OneSignal informa que o escopo não afeta o recebimento de Web Push.
         serviceWorkerParam: {
-          scope: "/PandasFc/"
+          scope: "/PandasFc/push/onesignal/"
         },
 
         notifyButton: { enable: false },

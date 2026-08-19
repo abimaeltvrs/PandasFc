@@ -954,7 +954,10 @@ async function getBrowserPushInfo(){
   if(!('serviceWorker' in navigator))return result;
   try{
     const regs=await navigator.serviceWorker.getRegistrations();
-    const reg=regs.find(r=>String(r.scope||'').includes('/PandasFc/')) || regs[0];
+    const reg=
+      regs.find(r=>String(r.scope||'').includes('/PandasFc/push/onesignal/')) ||
+      regs.find(r=>String(r.active?.scriptURL||r.installing?.scriptURL||r.waiting?.scriptURL||'').includes('OneSignalSDKWorker.js')) ||
+      null;
     if(reg){
       result.hasRegistration=true;
       result.scope=reg.scope||'';
@@ -1071,7 +1074,10 @@ async function recreatePushSubscription(){
 
     try{
       const regs=await navigator.serviceWorker.getRegistrations();
-      const reg=regs.find(r=>String(r.scope||'').includes('/PandasFc/'))||regs[0];
+      const reg=
+        regs.find(r=>String(r.scope||'').includes('/PandasFc/push/onesignal/')) ||
+        regs.find(r=>String(r.active?.scriptURL||r.installing?.scriptURL||r.waiting?.scriptURL||'').includes('OneSignalSDKWorker.js')) ||
+        null;
       if(reg){
         const nativeSub=await reg.pushManager.getSubscription();
         if(nativeSub) await nativeSub.unsubscribe();
@@ -1172,7 +1178,10 @@ async function runTechnicalPushTest(){
       });
     });
 
-    const reg=regs.find(r=>String(r.scope||'').includes('/PandasFc/')) || regs[0] || null;
+    const reg=
+      regs.find(r=>String(r.scope||'').includes('/PandasFc/push/onesignal/')) ||
+      regs.find(r=>String(r.active?.scriptURL||r.installing?.scriptURL||r.waiting?.scriptURL||'').includes('OneSignalSDKWorker.js')) ||
+      null;
 
     if(!reg){
       add('Registration do PANDAS FC','NÃO ENCONTRADA');
@@ -1231,10 +1240,10 @@ async function runTechnicalPushTest(){
 
     // Verify SW file is reachable
     try{
-      const swUrl=new URL('./sw.js',location.href).href;
+      const swUrl=new URL('./push/onesignal/OneSignalSDKWorker.js',location.href).href;
       const res=await fetch(swUrl,{cache:'no-store'});
       const txt=await res.text();
-      add('Fetch sw.js',{
+      add('Fetch OneSignalSDKWorker.js',{
         url:swUrl,
         status:res.status,
         ok:res.ok,
@@ -1242,7 +1251,7 @@ async function runTechnicalPushTest(){
         containsOneSignal:txt.includes('OneSignalSDK.sw.js')
       });
     }catch(err){
-      addError('Fetch sw.js ERRO',err);
+      addError('Fetch OneSignalSDKWorker.js ERRO',err);
     }
 
     // OneSignal SDK
