@@ -1016,3 +1016,33 @@ select option{
   .push-diagnostic .form-actions{display:grid!important;grid-template-columns:1fr!important}
   .push-diagnostic .form-actions button{width:100%}
 }
+
+
+/* Diagnóstico técnico detalhado do Push */
+.technical-diagnostic{
+  grid-column:1/-1;
+  margin-top:10px;
+  padding-top:12px;
+  border-top:1px solid rgba(65,170,255,.18);
+}
+.technical-diagnostic h4{
+  margin:0 0 6px;
+}
+.technical-output{
+  width:100%;
+  max-width:100%;
+  box-sizing:border-box;
+  min-height:260px;
+  max-height:520px;
+  overflow:auto;
+  white-space:pre-wrap;
+  word-break:break-word;
+  background:rgba(0,8,18,.82);
+  border:1px solid rgba(65,170,255,.28);
+  border-radius:12px;
+  padding:12px;
+  color:#d9efff;
+  font-size:11px;
+  line-height:1.45;
+  font-family:Consolas,Monaco,monospace;
+}

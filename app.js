@@ -1120,6 +1120,221 @@ document.addEventListener('visibilitychange',()=>{
   if(!document.hidden)setTimeout(refreshPushStatus,400);
 });
 
+
+async function runTechnicalPushTest(){
+  const out=document.getElementById('technicalPushOutput');
+  const btn=document.getElementById('runTechnicalPushTest');
+
+  const lines=[];
+  const add=(label,value)=>{
+    const text=typeof value==='string' ? value : JSON.stringify(value,null,2);
+    lines.push(`${label}: ${text}`);
+    if(out) out.textContent=lines.join('\n\n');
+  };
+
+  const addError=(label,err)=>{
+    add(label,{
+      name:err?.name||'Error',
+      message:err?.message||String(err),
+      stack:err?.stack||''
+    });
+  };
+
+  if(btn){
+    btn.disabled=true;
+    btn.textContent='⏳ Testando...';
+  }
+
+  try{
+    add('Data/hora',new Date().toString());
+    add('URL atual',location.href);
+    add('Origem',location.origin);
+    add('Notification.permission',
+      ('Notification' in window) ? Notification.permission : 'unsupported');
+    add('Secure context',window.isSecureContext);
+    add('User Agent',navigator.userAgent);
+
+    // Service Worker
+    if(!('serviceWorker' in navigator)){
+      add('Service Worker','NÃO SUPORTADO');
+      return;
+    }
+
+    const regs=await navigator.serviceWorker.getRegistrations();
+    add('Quantidade de registrations',regs.length);
+
+    regs.forEach((reg,i)=>{
+      add(`Registration ${i+1}`,{
+        scope:reg.scope,
+        active:reg.active?.scriptURL||null,
+        waiting:reg.waiting?.scriptURL||null,
+        installing:reg.installing?.scriptURL||null
+      });
+    });
+
+    const reg=regs.find(r=>String(r.scope||'').includes('/PandasFc/')) || regs[0] || null;
+
+    if(!reg){
+      add('Registration do PANDAS FC','NÃO ENCONTRADA');
+      try{
+        add('Tentando registrar ./sw.js','...');
+        const newReg=await navigator.serviceWorker.register('./sw.js',{scope:'./'});
+        add('Registro manual concluído',{
+          scope:newReg.scope,
+          active:newReg.active?.scriptURL||null
+        });
+      }catch(err){
+        addError('ERRO ao registrar ./sw.js',err);
+      }
+      return;
+    }
+
+    add('Registration escolhida',{
+      scope:reg.scope,
+      active:reg.active?.scriptURL||null
+    });
+
+    try{
+      await reg.update();
+      add('registration.update()','OK');
+    }catch(err){
+      addError('registration.update() ERRO',err);
+    }
+
+    try{
+      const ready=await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise((_,rej)=>setTimeout(()=>rej(new Error('Timeout aguardando navigator.serviceWorker.ready')),5000))
+      ]);
+      add('navigator.serviceWorker.ready',{
+        scope:ready.scope,
+        active:ready.active?.scriptURL||null
+      });
+    }catch(err){
+      addError('navigator.serviceWorker.ready ERRO',err);
+    }
+
+    add('navigator.serviceWorker.controller',
+      navigator.serviceWorker.controller?.scriptURL || 'NENHUM');
+
+    try{
+      const nativeSub=await reg.pushManager.getSubscription();
+      add('PushManager.getSubscription()',nativeSub ? {
+        endpoint:nativeSub.endpoint,
+        expirationTime:nativeSub.expirationTime,
+        hasP256dh:!!nativeSub.getKey('p256dh'),
+        hasAuth:!!nativeSub.getKey('auth')
+      } : 'NULL');
+    }catch(err){
+      addError('PushManager.getSubscription() ERRO',err);
+    }
+
+    // Verify SW file is reachable
+    try{
+      const swUrl=new URL('./sw.js',location.href).href;
+      const res=await fetch(swUrl,{cache:'no-store'});
+      const txt=await res.text();
+      add('Fetch sw.js',{
+        url:swUrl,
+        status:res.status,
+        ok:res.ok,
+        firstLine:(txt.split(/\r?\n/)[0]||'').slice(0,180),
+        containsOneSignal:txt.includes('OneSignalSDK.sw.js')
+      });
+    }catch(err){
+      addError('Fetch sw.js ERRO',err);
+    }
+
+    // OneSignal SDK
+    const OneSignal=window.PandasOneSignal;
+    add('window.PandasOneSignal',!!OneSignal);
+
+    if(!OneSignal){
+      add('OneSignal','NÃO CARREGADO');
+      return;
+    }
+
+    try{
+      add('OneSignal.Notifications.permission',
+        OneSignal.Notifications.permission);
+    }catch(err){
+      addError('Ler OneSignal.Notifications.permission ERRO',err);
+    }
+
+    try{
+      add('OneSignal PushSubscription ANTES',{
+        optedIn:OneSignal.User.PushSubscription.optedIn,
+        id:OneSignal.User.PushSubscription.id||null,
+        token:OneSignal.User.PushSubscription.token ? 'PRESENTE' : null
+      });
+    }catch(err){
+      addError('Ler PushSubscription ANTES ERRO',err);
+    }
+
+    // Attempt real optIn and capture the actual error
+    try{
+      add('Executando OneSignal.User.PushSubscription.optIn()','INICIANDO');
+      const result=await OneSignal.User.PushSubscription.optIn();
+      add('optIn() retorno',result ?? 'undefined');
+    }catch(err){
+      addError('optIn() ERRO REAL',err);
+    }
+
+    await wait(2500);
+
+    try{
+      add('OneSignal PushSubscription DEPOIS',{
+        optedIn:OneSignal.User.PushSubscription.optedIn,
+        id:OneSignal.User.PushSubscription.id||null,
+        token:OneSignal.User.PushSubscription.token ? 'PRESENTE' : null
+      });
+    }catch(err){
+      addError('Ler PushSubscription DEPOIS ERRO',err);
+    }
+
+    try{
+      const nativeSub2=await reg.pushManager.getSubscription();
+      add('PushManager depois do optIn',nativeSub2 ? {
+        endpoint:nativeSub2.endpoint,
+        expirationTime:nativeSub2.expirationTime,
+        hasP256dh:!!nativeSub2.getKey('p256dh'),
+        hasAuth:!!nativeSub2.getKey('auth')
+      } : 'NULL');
+    }catch(err){
+      addError('PushManager depois do optIn ERRO',err);
+    }
+
+    // Final high-level verdict
+    let finalId='';
+    try{ finalId=OneSignal.User.PushSubscription.id||''; }catch{}
+    if(finalId){
+      add('RESULTADO FINAL','✅ Subscription ID criado com sucesso');
+    }else{
+      add('RESULTADO FINAL','❌ Ainda sem Subscription ID. Copie este diagnóstico e envie.');
+    }
+
+  }catch(err){
+    addError('ERRO GERAL DO TESTE',err);
+  }finally{
+    if(btn){
+      btn.disabled=false;
+      btn.textContent='🧪 Executar teste técnico';
+    }
+  }
+}
+
+document.getElementById('runTechnicalPushTest')?.addEventListener('click',runTechnicalPushTest);
+
+document.getElementById('copyTechnicalPushTest')?.addEventListener('click',async()=>{
+  const txt=document.getElementById('technicalPushOutput')?.textContent||'';
+  try{
+    await navigator.clipboard.writeText(txt);
+    toast('Diagnóstico copiado.');
+  }catch{
+    alert(txt);
+  }
+});
+
 /* Mantido apenas como fallback visual quando o aplicativo estiver aberto.
    As notificações em segundo plano passam a ser entregues pelo OneSignal. */
 function checkTodayMatches(){
