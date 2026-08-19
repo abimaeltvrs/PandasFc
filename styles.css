@@ -59,3 +59,65 @@
   .topbar .top-actions{justify-self:stretch;width:100%;justify-content:space-between}
   .header-club{justify-content:center}
 }
+
+/* Cabeçalho com arte oficial PANDAS FC */
+.topbar.header-art{
+  display:block;
+  position:sticky;
+  top:0;
+  z-index:50;
+  padding:0;
+  min-height:0;
+  background:#03182a;
+  border-bottom:3px solid #087fc1;
+  box-shadow:0 5px 18px rgba(0,0,0,.3);
+}
+.header-art-image{
+  display:block;
+  width:100%;
+  height:auto;
+  max-height:300px;
+  object-fit:cover;
+  object-position:center;
+}
+.header-art-actions{
+  position:absolute;
+  right:18px;
+  top:14px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:7px 9px;
+  border-radius:12px;
+  background:rgba(1,14,28,.78);
+  backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,.12);
+}
+.header-art-actions .sync-status{color:#bde8ff}
+.header-art-actions .sync-status.ok{color:#8dffab}
+.header-art-actions .sync-status.err{color:#ff9a9a}
+.header-art-actions .install-btn{
+  background:#087fc1;
+  color:#fff;
+  border:1px solid rgba(255,255,255,.22);
+  font-weight:800;
+}
+@media(max-width:850px){
+  .header-art-image{max-height:220px}
+  .header-art-actions{top:8px;right:8px}
+}
+@media(max-width:560px){
+  .header-art-image{
+    height:155px;
+    object-fit:cover;
+    object-position:center;
+  }
+  .header-art-actions{
+    position:static;
+    width:100%;
+    box-sizing:border-box;
+    border-radius:0;
+    justify-content:space-between;
+    padding:7px 10px;
+  }
+}

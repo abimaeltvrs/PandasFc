@@ -40,3 +40,7 @@ Enquanto o Firestore estiver em modo de teste, o aplicativo consegue ler e grava
 ## Cache
 
 O service worker desta versão usa o cache `pandas-fc-v5-firebase`. Depois de publicar, use `Ctrl + F5` no computador ou feche/reabra o app no Android.
+
+
+## Cabeçalho
+Esta versão inclui a arte `header-pandas-fc.png` como cabeçalho responsivo do site e do PWA.
