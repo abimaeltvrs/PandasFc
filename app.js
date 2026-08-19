@@ -1,16 +1,103 @@
-const STORE_KEY = 'pandasfc_data_v4';
-const state = JSON.parse(localStorage.getItem(STORE_KEY) || 'null') || {
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+import {
+  getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot,
+  getDocs, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBDRttCbeYSrFttoGPKmgVRrG251ns0Pck",
+  authDomain: "panda-fc-449f7.firebaseapp.com",
+  projectId: "panda-fc-449f7",
+  storageBucket: "panda-fc-449f7.firebasestorage.app",
+  messagingSenderId: "854268170585",
+  appId: "1:854268170585:web:1f1cadb971677f59a97c48",
+  measurementId: "G-GF5664G8HQ"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
+
+const state = {
   players: [],
   events: [],
-  teamLogo: '',
+  teamLogo: "",
   selectedLineup: []
 };
 
-function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); renderAll(); }
+let firebaseReady = false;
+const syncStatus = document.getElementById("syncStatus");
+function setSyncStatus(text, type=""){
+  if(!syncStatus) return;
+  syncStatus.textContent = text;
+  syncStatus.className = `sync-status ${type}`.trim();
+}
+
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
 function esc(s=''){ return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-function fileToDataURL(file){ return new Promise((resolve,reject)=>{ const r=new FileReader(); r.onload=()=>resolve(r.result); r.onerror=reject; r.readAsDataURL(file); }); }
+
+function fileToCompressedDataURL(file, maxSize=500, quality=.72){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img,0,0,canvas.width,canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function markWriting(){
+  setSyncStatus("☁️ Sincronizando...");
+}
+
+function connectRealtime(){
+  onSnapshot(collection(db,"players"), snap=>{
+    state.players = snap.docs.map(d=>({id:d.id,...d.data()}));
+    state.players.sort((a,b)=>(Number(a.number)||0)-(Number(b.number)||0) || String(a.name||"").localeCompare(String(b.name||"")));
+    firebaseReady = true;
+    setSyncStatus("☁️ Sincronizado","ok");
+    renderPlayers(); renderLineup(); renderScorers();
+  }, err=>syncError(err));
+
+  onSnapshot(collection(db,"events"), snap=>{
+    state.events = snap.docs.map(d=>({id:d.id,...d.data()}));
+    firebaseReady = true;
+    setSyncStatus("☁️ Sincronizado","ok");
+    renderEvents(); renderMatches(); renderStats(); renderCalendar(); checkTodayMatches();
+  }, err=>syncError(err));
+
+  onSnapshot(doc(db,"settings","team"), snap=>{
+    state.teamLogo = snap.exists() ? (snap.data().teamLogo || "") : "";
+    firebaseReady = true;
+    setSyncStatus("☁️ Sincronizado","ok");
+    renderLogo();
+  }, err=>syncError(err));
+
+  onSnapshot(doc(db,"lineup","current"), snap=>{
+    state.selectedLineup = snap.exists() ? (snap.data().playerIds || []) : [];
+    firebaseReady = true;
+    setSyncStatus("☁️ Sincronizado","ok");
+    renderLineup();
+  }, err=>syncError(err));
+}
+
+function syncError(err){
+  console.error(err);
+  setSyncStatus("⚠️ Erro de sincronização","err");
+  toast("Erro ao acessar o Firebase. Verifique as regras do Firestore.");
+}
 
 document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click',()=>{
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
@@ -20,35 +107,41 @@ document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click',
 }));
 
 const playerForm = document.getElementById('playerForm');
-playerForm.addEventListener('submit', e=>{
+playerForm.addEventListener('submit', async e=>{
   e.preventDefault();
-  const id=document.getElementById('playerId').value;
+  const id=document.getElementById('playerId').value || uid();
+  const old=state.players.find(p=>p.id===id);
   const obj={
-    id:id||uid(),
     name:document.getElementById('playerName').value.trim(),
     position:document.getElementById('playerPosition').value,
     number:Number(document.getElementById('playerNumber').value),
-    goals:0
+    goals:Number(old?.goals||0),
+    updatedAt:serverTimestamp()
   };
-  if(id){
-    const i=state.players.findIndex(p=>p.id===id);
-    obj.goals=state.players[i]?.goals||0;
-    state.players[i]=obj;
-  } else state.players.push(obj);
-  playerForm.reset(); document.getElementById('playerId').value=''; toast('Jogador salvo.'); save();
+  try{
+    markWriting();
+    await setDoc(doc(db,"players",id),obj,{merge:true});
+    playerForm.reset(); document.getElementById('playerId').value='';
+    toast('Jogador salvo e sincronizado.');
+  }catch(err){ syncError(err); }
 });
 document.getElementById('cancelPlayerEdit').onclick=()=>{playerForm.reset();document.getElementById('playerId').value='';};
 document.getElementById('playerSearch').addEventListener('input',renderPlayers);
 
 function editPlayer(id){
   const p=state.players.find(x=>x.id===id); if(!p)return;
-  document.getElementById('playerId').value=p.id; document.getElementById('playerName').value=p.name;
-  document.getElementById('playerPosition').value=p.position; document.getElementById('playerNumber').value=p.number;
+  document.getElementById('playerId').value=p.id; document.getElementById('playerName').value=p.name||'';
+  document.getElementById('playerPosition').value=p.position||''; document.getElementById('playerNumber').value=p.number??'';
   document.querySelector('[data-page="cadastro"]').click();
 }
-function deletePlayer(id){
-  if(!confirm('Excluir este jogador?'))return;
-  state.players=state.players.filter(p=>p.id!==id); state.selectedLineup=state.selectedLineup.filter(x=>x!==id); save();
+async function deletePlayer(id){
+  if(!confirm('Excluir este jogador em todos os dispositivos?'))return;
+  try{
+    markWriting();
+    await deleteDoc(doc(db,"players",id));
+    const ids=state.selectedLineup.filter(x=>x!==id);
+    await setDoc(doc(db,"lineup","current"),{playerIds:ids,updatedAt:serverTimestamp()},{merge:true});
+  }catch(err){syncError(err);}
 }
 function renderPlayers(){
   const q=document.getElementById('playerSearch').value.toLowerCase();
@@ -66,7 +159,15 @@ function renderLineup(){
     <span><strong>#${p.number} ${esc(p.name)}</strong><br><span class="muted">${esc(p.position)}</span></span></label>`).join(''):'<p class="muted">Cadastre jogadores primeiro.</p>';
   renderField();
 }
-function toggleLineup(id,on){ if(on&&!state.selectedLineup.includes(id))state.selectedLineup.push(id); if(!on)state.selectedLineup=state.selectedLineup.filter(x=>x!==id); save(); }
+async function toggleLineup(id,on){
+  let ids=[...state.selectedLineup];
+  if(on&&!ids.includes(id))ids.push(id);
+  if(!on)ids=ids.filter(x=>x!==id);
+  try{
+    markWriting();
+    await setDoc(doc(db,"lineup","current"),{playerIds:ids,updatedAt:serverTimestamp()},{merge:true});
+  }catch(err){syncError(err);}
+}
 
 const positionSlots={
  'Goleiro':[[50,91],[50,9]],
@@ -107,16 +208,29 @@ function downloadCanvas(c,name){const a=document.createElement('a');a.download=n
 const eventForm=document.getElementById('eventForm');
 eventForm.addEventListener('submit',async e=>{
   e.preventDefault();
-  const id=document.getElementById('eventId').value; let logo='';
-  const old=state.events.find(x=>x.id===id); if(old)logo=old.logo||'';
-  const f=document.getElementById('opponentLogo').files[0]; if(f)logo=await fileToDataURL(f);
-  const obj={id:id||uid(),opponent:document.getElementById('opponentName').value.trim(),logo,date:document.getElementById('matchDate').value,time:document.getElementById('matchTime').value,location:document.getElementById('matchLocation').value.trim(),goalsFor:old?.goalsFor??'',goalsAgainst:old?.goalsAgainst??''};
-  if(id){const i=state.events.findIndex(x=>x.id===id);state.events[i]=obj;}else state.events.push(obj);
-  eventForm.reset();document.getElementById('eventId').value='';toast('Confronto salvo.');save();
+  const id=document.getElementById('eventId').value || uid();
+  const old=state.events.find(x=>x.id===id); let logo=old?.logo||'';
+  const f=document.getElementById('opponentLogo').files[0]; if(f)logo=await fileToCompressedDataURL(f);
+  const obj={
+    opponent:document.getElementById('opponentName').value.trim(),
+    logo,
+    date:document.getElementById('matchDate').value,
+    time:document.getElementById('matchTime').value,
+    location:document.getElementById('matchLocation').value.trim(),
+    goalsFor:old?.goalsFor??'',
+    goalsAgainst:old?.goalsAgainst??'',
+    updatedAt:serverTimestamp()
+  };
+  try{
+    markWriting();
+    await setDoc(doc(db,"events",id),obj,{merge:true});
+    eventForm.reset();document.getElementById('eventId').value='';
+    toast('Confronto salvo e sincronizado.');
+  }catch(err){syncError(err);}
 });
 document.getElementById('cancelEventEdit').onclick=()=>{eventForm.reset();document.getElementById('eventId').value='';};
-function editEvent(id){const e=state.events.find(x=>x.id===id);if(!e)return;document.getElementById('eventId').value=e.id;document.getElementById('opponentName').value=e.opponent;document.getElementById('matchDate').value=e.date;document.getElementById('matchTime').value=e.time;document.getElementById('matchLocation').value=e.location;}
-function deleteEvent(id){if(!confirm('Excluir este confronto?'))return;state.events=state.events.filter(e=>e.id!==id);save();}
+function editEvent(id){const e=state.events.find(x=>x.id===id);if(!e)return;document.getElementById('eventId').value=e.id;document.getElementById('opponentName').value=e.opponent||'';document.getElementById('matchDate').value=e.date||'';document.getElementById('matchTime').value=e.time||'';document.getElementById('matchLocation').value=e.location||'';}
+async function deleteEvent(id){if(!confirm('Excluir este confronto em todos os dispositivos?'))return;try{markWriting();await deleteDoc(doc(db,"events",id));}catch(err){syncError(err);}}
 function statusOf(e){if(e.goalsFor===''||e.goalsAgainst==='')return '';const a=Number(e.goalsFor),b=Number(e.goalsAgainst);return a>b?'VITÓRIA':a<b?'DERROTA':'EMPATE';}
 function renderEvents(){
   const sorted=[...state.events].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
@@ -131,7 +245,12 @@ function renderMatches(){
    <div class="score-inputs"><input type="number" min="0" value="${e.goalsFor}" placeholder="0" onchange="setScore('${e.id}','goalsFor',this.value)"><strong>×</strong><input type="number" min="0" value="${e.goalsAgainst}" placeholder="0" onchange="setScore('${e.id}','goalsAgainst',this.value)"></div></div>`;
  }).join(''):'<div class="card"><p class="muted">Cadastre confrontos na Agenda.</p></div>';
 }
-function setScore(id,key,v){const e=state.events.find(x=>x.id===id);if(!e)return;e[key]=v===''?'':Number(v);save();}
+async function setScore(id,key,v){
+  try{
+    markWriting();
+    await setDoc(doc(db,"events",id),{[key]:v===''?'':Number(v),updatedAt:serverTimestamp()},{merge:true});
+  }catch(err){syncError(err);}
+}
 function formatDate(s){if(!s)return'';const [y,m,d]=s.split('-');return `${d}/${m}/${y}`;}
 
 async function generatePoster(id){
@@ -157,10 +276,10 @@ function renderStats(){
  document.getElementById('historyList').innerHTML=done.length?[...done].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time)).map(e=>`<div class="list-row"><div><strong>PANDAS FC ${e.goalsFor} × ${e.goalsAgainst} ${esc(e.opponent)}</strong><div class="muted">${formatDate(e.date)}</div></div><span class="status ${statusOf(e)==='VITÓRIA'?'win':statusOf(e)==='DERROTA'?'loss':'draw'}">${statusOf(e)}</span></div>`).join(''):'<p class="muted">Nenhuma partida finalizada.</p>';
 }
 function renderScorers(){
- const arr=[...state.players].sort((a,b)=>(b.goals||0)-(a.goals||0)||a.name.localeCompare(b.name));
+ const arr=[...state.players].sort((a,b)=>(b.goals||0)-(a.goals||0)||String(a.name||'').localeCompare(String(b.name||'')));
  document.getElementById('scorersList').innerHTML=arr.length?arr.map((p,i)=>`<div class="list-row"><div style="display:flex;align-items:center;gap:12px"><div class="rank-badge">${i+1}</div><div><strong>#${p.number} ${esc(p.name)}</strong><div class="muted">${esc(p.position)}</div></div></div><label>Gols <input class="goal-input" type="number" min="0" value="${p.goals||0}" onchange="setGoals('${p.id}',this.value)"></label></div>`).join(''):'<p class="muted">Nenhum jogador cadastrado.</p>';
 }
-function setGoals(id,v){const p=state.players.find(x=>x.id===id);if(!p)return;p.goals=Math.max(0,Number(v)||0);save();}
+async function setGoals(id,v){try{markWriting();await setDoc(doc(db,"players",id),{goals:Math.max(0,Number(v)||0),updatedAt:serverTimestamp()},{merge:true});}catch(err){syncError(err);}}
 
 let calDate=new Date();document.getElementById('prevMonth').onclick=()=>{calDate.setMonth(calDate.getMonth()-1);renderCalendar();};document.getElementById('nextMonth').onclick=()=>{calDate.setMonth(calDate.getMonth()+1);renderCalendar();};
 function renderCalendar(){
@@ -170,10 +289,55 @@ function renderCalendar(){
  for(let d=1;d<=days;d++){const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;const ev=state.events.some(e=>e.date===ds);html+=`<div class="day ${ev?'has-event':''}" title="${ev?'Há partida neste dia':''}">${d}</div>`;}root.innerHTML=html;
 }
 
-document.getElementById('teamLogoInput').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;state.teamLogo=await fileToDataURL(f);toast('Logo atualizada.');save();});
+document.getElementById('teamLogoInput').addEventListener('change',async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    const logo=await fileToCompressedDataURL(f,600,.75);
+    markWriting();
+    await setDoc(doc(db,"settings","team"),{teamLogo:logo,updatedAt:serverTimestamp()},{merge:true});
+    toast('Logo atualizada e sincronizada.');
+  }catch(err){syncError(err);}
+});
 function renderLogo(){const img=document.getElementById('dashboardLogo'),ph=document.getElementById('dashboardPlaceholder');if(state.teamLogo){img.src=state.teamLogo;img.classList.remove('hidden');ph.classList.add('hidden');}else{img.classList.add('hidden');ph.classList.remove('hidden');}}
 
-document.getElementById('clearDataBtn').onclick=()=>{if(confirm('Apagar todos os dados do PANDAS FC neste dispositivo?')){localStorage.removeItem(STORE_KEY);location.reload();}};
+document.getElementById('clearDataBtn').onclick=async()=>{
+  if(!confirm('Apagar jogadores, partidas, escalação e logo do Firebase? Isso afetará todos os dispositivos.'))return;
+  try{
+    markWriting();
+    const ps=await getDocs(collection(db,"players"));
+    await Promise.all(ps.docs.map(d=>deleteDoc(d.ref)));
+    const es=await getDocs(collection(db,"events"));
+    await Promise.all(es.docs.map(d=>deleteDoc(d.ref)));
+    await deleteDoc(doc(db,"settings","team")).catch(()=>{});
+    await deleteDoc(doc(db,"lineup","current")).catch(()=>{});
+    toast('Dados do Firebase apagados.');
+  }catch(err){syncError(err);}
+};
+
+document.getElementById('migrateBtn').onclick=async()=>{
+  const raw=localStorage.getItem('pandasfc_data_v4');
+  if(!raw){alert('Não encontrei dados antigos salvos neste navegador.');return;}
+  if(!confirm('Importar os dados antigos deste dispositivo para o Firebase?'))return;
+  try{
+    const old=JSON.parse(raw);
+    markWriting();
+    for(const p of old.players||[]){
+      await setDoc(doc(db,"players",p.id||uid()),{
+        name:p.name||'',position:p.position||'',number:Number(p.number)||0,goals:Number(p.goals)||0,updatedAt:serverTimestamp()
+      },{merge:true});
+    }
+    for(const e of old.events||[]){
+      await setDoc(doc(db,"events",e.id||uid()),{
+        opponent:e.opponent||'',logo:e.logo||'',date:e.date||'',time:e.time||'',location:e.location||'',
+        goalsFor:e.goalsFor??'',goalsAgainst:e.goalsAgainst??'',updatedAt:serverTimestamp()
+      },{merge:true});
+    }
+    if(old.teamLogo) await setDoc(doc(db,"settings","team"),{teamLogo:old.teamLogo,updatedAt:serverTimestamp()},{merge:true});
+    if(old.selectedLineup) await setDoc(doc(db,"lineup","current"),{playerIds:old.selectedLineup,updatedAt:serverTimestamp()},{merge:true});
+    toast('Dados antigos importados para o Firebase.');
+  }catch(err){syncError(err);}
+};
+
 document.getElementById('notifyBtn').onclick=async()=>{if(!('Notification'in window)){alert('Este navegador não suporta notificações.');return;}const p=await Notification.requestPermission();toast(p==='granted'?'Notificações ativadas.':'Permissão não concedida.');};
 function checkTodayMatches(){
  if(!('Notification'in window)||Notification.permission!=='granted')return;
@@ -190,7 +354,19 @@ async function installApp(){
 }
 document.getElementById('installBtn').onclick=installApp;document.getElementById('installBtn2').onclick=installApp;
 window.addEventListener('appinstalled',()=>toast('PANDAS FC instalado com sucesso.'));
-if('serviceWorker'in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.error));}
 
-function renderAll(){renderPlayers();renderLineup();renderEvents();renderMatches();renderStats();renderScorers();renderCalendar();renderLogo();}
-renderAll();checkTodayMatches();
+if('serviceWorker'in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.error));
+}
+
+window.editPlayer=editPlayer;
+window.deletePlayer=deletePlayer;
+window.toggleLineup=toggleLineup;
+window.editEvent=editEvent;
+window.deleteEvent=deleteEvent;
+window.generatePoster=generatePoster;
+window.setScore=setScore;
+window.setGoals=setGoals;
+
+renderPlayers(); renderLineup(); renderEvents(); renderMatches(); renderStats(); renderScorers(); renderCalendar(); renderLogo();
+connectRealtime();

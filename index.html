@@ -21,7 +21,7 @@
         <small>Gestão do time</small>
       </div>
     </div>
-    <button id="installBtn" class="install-btn">📲 Instalar aplicativo</button>
+    <div class="top-actions"><span id="syncStatus" class="sync-status">☁️ Conectando...</span><button id="installBtn" class="install-btn">📲 Instalar aplicativo</button></div>
   </header>
 
   <div class="layout">
@@ -191,7 +191,8 @@
           </label>
           <button id="notifyBtn" class="primary">🔔 Ativar notificações</button>
           <button id="installBtn2" class="primary">📲 Instalar aplicativo</button>
-          <button id="clearDataBtn" class="danger">Apagar todos os dados</button>
+          <button id="migrateBtn" class="ghost">⬆️ Importar dados antigos deste dispositivo</button>
+          <button id="clearDataBtn" class="danger">Apagar dados do Firebase</button>
         </div>
         <div class="card">
           <h3>Instalação no Android</h3>
@@ -202,6 +203,6 @@
   </div>
 
   <div id="toast" class="toast"></div>
-  <script src="./app.js"></script>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>

@@ -1,14 +1,20 @@
-# PANDAS FC — versão completa e instalável
+# PANDAS FC — Firebase sincronizado
 
-Arquivos desta versão:
+Esta versão usa o **Cloud Firestore** do projeto `panda-fc-449f7`.
 
-- `index.html`
-- `styles.css`
-- `app.js`
-- `manifest.webmanifest`
-- `sw.js`
-- `icon-192.png`
-- `icon-512.png`
+## O que sincroniza
+
+- jogadores;
+- elenco;
+- escalação selecionada;
+- agenda;
+- placares;
+- estatísticas (calculadas a partir dos placares);
+- artilharia;
+- logo do PANDAS FC;
+- logos dos adversários.
+
+As alterações aparecem automaticamente nos outros dispositivos conectados.
 
 ## Publicação no GitHub Pages
 
@@ -18,19 +24,19 @@ Em **Settings → Pages**:
 - Branch: **main**
 - Folder: **/(root)**
 
-Substitua os arquivos antigos pelos arquivos deste pacote e faça o commit.
+Substitua os arquivos antigos pelos arquivos deste ZIP e faça o commit.
 
-## Importante sobre cache
+## Dados antigos
 
-Esta versão usa `pandas-fc-v4` no service worker para substituir a página antiga em cache.
+Se você já tinha jogadores ou partidas salvos na versão anterior, abra:
+**Configurações → Importar dados antigos deste dispositivo**.
 
-Se mesmo assim aparecer a versão antiga:
-1. pressione `Ctrl + F5` no computador;
-2. ou abra em janela anônima;
-3. no Android, feche o site e abra novamente após a publicação.
+Faça isso apenas em um dispositivo para evitar duplicações.
 
-## Instalação
+## Firestore
 
-O botão **📲 Instalar aplicativo** fica no topo e também em **Configurações**.
+Enquanto o Firestore estiver em modo de teste, o aplicativo consegue ler e gravar sem login. O modo de teste expira conforme a regra criada pelo Firebase. Antes de expirar, será necessário atualizar a regra caso você queira continuar sem autenticação.
 
-No Android/Chrome, se o navegador não abrir a janela automaticamente, use o menu **⋮ → Instalar app** ou **Adicionar à tela inicial**.
+## Cache
+
+O service worker desta versão usa o cache `pandas-fc-v5-firebase`. Depois de publicar, use `Ctrl + F5` no computador ou feche/reabra o app no Android.
