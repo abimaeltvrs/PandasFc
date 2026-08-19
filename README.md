@@ -74,3 +74,9 @@ O Início / Dashboard agora possui fundo preto e a mídia enviada ocupa toda a �
 
 O botão **Gerar imagem** agora usa `campo-pandas-fc.png` como fundo,
 igual ao campo exibido na tela da Escalação.
+
+## Menu fixo
+
+A barra de menu agora permanece visível durante a rolagem.
+No desktop, o menu lateral fica fixo na lateral.
+No celular, a barra horizontal permanece presa no topo.

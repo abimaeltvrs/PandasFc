@@ -288,3 +288,43 @@ button:focus-visible{
 .soccer-field .penalty{display:none !important;}
 /* Jogadores continuam sobre a arte. */
 .field-player{z-index:3;}
+
+/* Menu lateral sempre visível durante a rolagem */
+.layout{
+  align-items:start;
+}
+
+.sidebar{
+  position:sticky;
+  top:86px;
+  height:calc(100vh - 86px);
+  overflow-y:auto;
+  align-self:start;
+  z-index:30;
+  scrollbar-width:thin;
+}
+
+.sidebar::-webkit-scrollbar{
+  width:7px;
+}
+.sidebar::-webkit-scrollbar-thumb{
+  background:rgba(255,255,255,.18);
+  border-radius:999px;
+}
+
+@media(max-width:900px){
+  .sidebar{
+    position:sticky;
+    top:0;
+    height:auto;
+    max-height:none;
+    overflow-x:auto;
+    overflow-y:hidden;
+    z-index:40;
+    box-shadow:0 3px 12px rgba(0,0,0,.18);
+  }
+
+  .layout{
+    align-items:stretch;
+  }
+}
