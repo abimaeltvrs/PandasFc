@@ -224,15 +224,73 @@ function renderField(){
 }
 
 document.getElementById('downloadLineup').onclick=()=>downloadLineupImage();
-function downloadLineupImage(){
-  const c=document.createElement('canvas'); c.width=1080;c.height=1350;const x=c.getContext('2d');
-  x.fillStyle='#163d1d';x.fillRect(0,0,c.width,c.height);
-  for(let i=0;i<10;i++){x.fillStyle=i%2?'#2e7d32':'#388e3c';x.fillRect(i*108,0,108,1350);}
-  x.strokeStyle='#fff';x.lineWidth=8;x.strokeRect(40,40,1000,1270);x.beginPath();x.moveTo(40,675);x.lineTo(1040,675);x.stroke();
-  x.beginPath();x.arc(540,675,110,0,Math.PI*2);x.stroke();x.strokeRect(260,40,560,220);x.strokeRect(260,1090,560,220);
-  x.fillStyle='#fff';x.textAlign='center';x.font='bold 46px Arial';x.fillText('PANDAS FC - ESCALAÇÃO',540,100);
-  const players=state.selectedLineup.map(id=>state.players.find(p=>p.id===id)).filter(Boolean); const slots=getPlayerSlots(players);
-  slots.forEach(({p,x:px,y:py})=>{const cx=40+(px/100)*1000,cy=40+(py/100)*1270;x.fillStyle='#111';x.beginPath();x.arc(cx,cy,50,0,Math.PI*2);x.fill();x.strokeStyle='#fff';x.lineWidth=4;x.stroke();x.fillStyle='#fff';x.font='bold 26px Arial';x.fillText(`#${p.number}`,cx,cy-2);x.font='bold 20px Arial';x.fillText(p.name,cx,cy+27);});
+async function downloadLineupImage(){
+  const c=document.createElement('canvas');
+  c.width=1024;
+  c.height=1536;
+  const x=c.getContext('2d');
+
+  // Fundo preto de segurança
+  x.fillStyle='#000';
+  x.fillRect(0,0,c.width,c.height);
+
+  // Usa a mesma arte personalizada da aba Escalação
+  try{
+    const fieldImg=await loadImage('./campo-pandas-fc.png');
+
+    const scale=Math.max(c.width/fieldImg.width,c.height/fieldImg.height);
+    const w=fieldImg.width*scale;
+    const h=fieldImg.height*scale;
+    const dx=(c.width-w)/2;
+    const dy=(c.height-h)/2;
+
+    x.drawImage(fieldImg,dx,dy,w,h);
+  }catch(err){
+    console.error('Erro ao carregar campo personalizado:',err);
+    x.fillStyle='#071927';
+    x.fillRect(0,0,c.width,c.height);
+  }
+
+  // Jogadores posicionados sobre a imagem
+  const players=state.selectedLineup
+    .map(id=>state.players.find(p=>p.id===id))
+    .filter(Boolean);
+
+  const slots=getPlayerSlots(players);
+
+  slots.forEach(({p,x:px,y:py})=>{
+    const cx=(px/100)*c.width;
+    const cy=(py/100)*c.height;
+
+    // sombra
+    x.beginPath();
+    x.fillStyle='rgba(0,0,0,.55)';
+    x.arc(cx+4,cy+6,52,0,Math.PI*2);
+    x.fill();
+
+    // marcador azul escuro
+    x.beginPath();
+    x.fillStyle='#061a2d';
+    x.arc(cx,cy,50,0,Math.PI*2);
+    x.fill();
+
+    // contorno azul
+    x.strokeStyle='#09a9f5';
+    x.lineWidth=4;
+    x.stroke();
+
+    // número
+    x.fillStyle='#fff';
+    x.textAlign='center';
+    x.textBaseline='middle';
+    x.font='bold 27px Arial';
+    x.fillText(`#${p.number}`,cx,cy-9);
+
+    // nome
+    x.font='bold 19px Arial';
+    x.fillText(String(p.name).toUpperCase(),cx,cy+19);
+  });
+
   downloadCanvas(c,'escalacao-pandas-fc.png');
 }
 function downloadCanvas(c,name){const a=document.createElement('a');a.download=name;a.href=c.toDataURL('image/png');a.click();}
