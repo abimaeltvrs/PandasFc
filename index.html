@@ -4,26 +4,204 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#111111" />
-  <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="styles.css" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./icon-192.png" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
+  <link rel="stylesheet" href="./styles.css" />
   <title>PANDAS FC</title>
 </head>
 <body>
   <header class="topbar">
-    <h1>PANDAS FC</h1>
-    <button id="installBtn" class="install-btn" hidden>📲 Instalar aplicativo</button>
+    <div class="brand">
+      <div class="brand-mark">🐼</div>
+      <div>
+        <strong>PANDAS FC</strong>
+        <small>Gestão do time</small>
+      </div>
+    </div>
+    <button id="installBtn" class="install-btn">📲 Instalar aplicativo</button>
   </header>
 
-  <main class="container">
-    <section class="card">
-      <h2>🐼 Início / Dashboard</h2>
-      <p>Aplicativo oficial do PANDAS FC.</p>
-      <p id="installHint" class="hint">
-        Quando o navegador permitir, o botão “Instalar aplicativo” aparecerá no topo.
-      </p>
-    </section>
-  </main>
+  <div class="layout">
+    <aside class="sidebar">
+      <button class="nav-btn active" data-page="dashboard">🐼 Início / Dashboard</button>
+      <button class="nav-btn" data-page="cadastro">👤 Cadastro de Jogadores</button>
+      <button class="nav-btn" data-page="elenco">📋 Elenco</button>
+      <button class="nav-btn" data-page="escalacao">⚽ Escalação</button>
+      <button class="nav-btn" data-page="partidas">⚽ Partidas</button>
+      <button class="nav-btn" data-page="agenda">📅 Agenda</button>
+      <button class="nav-btn" data-page="estatisticas">📊 Estatísticas</button>
+      <button class="nav-btn" data-page="artilharia">🏆 Artilharia</button>
+      <button class="nav-btn" data-page="config">⚙️ Configurações</button>
+    </aside>
 
-  <script src="app.js"></script>
+    <main class="content">
+      <section id="dashboard" class="page active">
+        <div class="dashboard-logo-wrap">
+          <img id="dashboardLogo" class="dashboard-logo hidden" alt="Logo PANDAS FC" />
+          <div id="dashboardPlaceholder" class="logo-placeholder">
+            <div class="big-panda">🐼</div>
+            <h1>PANDAS FC</h1>
+            <p>Envie a logo oficial em Configurações.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="cadastro" class="page">
+        <div class="page-header">
+          <div><h2>👤 Cadastro de Jogadores</h2><p>Cadastre nome, posição e número.</p></div>
+        </div>
+        <form id="playerForm" class="card form-grid">
+          <input type="hidden" id="playerId" />
+          <label>Nome
+            <input id="playerName" required placeholder="Ex.: Tavares" />
+          </label>
+          <label>Posição
+            <select id="playerPosition" required>
+              <option value="">Selecione</option>
+              <option>Goleiro</option>
+              <option>Zagueiro</option>
+              <option>Lateral</option>
+              <option>Volante</option>
+              <option>Meio-campo</option>
+              <option>Atacante</option>
+            </select>
+          </label>
+          <label>Número
+            <input id="playerNumber" required type="number" min="0" max="999" placeholder="10" />
+          </label>
+          <div class="form-actions">
+            <button class="primary" type="submit">Salvar jogador</button>
+            <button class="ghost" type="button" id="cancelPlayerEdit">Cancelar edição</button>
+          </div>
+        </form>
+      </section>
+
+      <section id="elenco" class="page">
+        <div class="page-header">
+          <div><h2>📋 Elenco</h2><p>Todos os jogadores cadastrados.</p></div>
+          <input id="playerSearch" class="search" placeholder="Pesquisar jogador..." />
+        </div>
+        <div id="playersList" class="card list"></div>
+      </section>
+
+      <section id="escalacao" class="page">
+        <div class="page-header">
+          <div><h2>⚽ Escalação</h2><p>Marque os jogadores e eles aparecem automaticamente no campo.</p></div>
+          <button id="downloadLineup" class="primary">🖼️ Gerar imagem</button>
+        </div>
+        <div class="lineup-layout">
+          <div class="card">
+            <h3>Jogadores disponíveis</h3>
+            <div id="lineupPlayers" class="check-list"></div>
+          </div>
+          <div class="field-card card">
+            <div id="soccerField" class="soccer-field">
+              <div class="field-half"></div>
+              <div class="field-circle"></div>
+              <div class="penalty top"></div>
+              <div class="penalty bottom"></div>
+              <div id="fieldPlayers"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="partidas" class="page">
+        <div class="page-header">
+          <div><h2>⚽ Partidas</h2><p>Registre o placar das partidas cadastradas na agenda.</p></div>
+        </div>
+        <div id="matchesList" class="list"></div>
+      </section>
+
+      <section id="agenda" class="page">
+        <div class="page-header">
+          <div><h2>📅 Agenda</h2><p>Cadastre confrontos do PANDAS FC.</p></div>
+        </div>
+
+        <form id="eventForm" class="card form-grid">
+          <input type="hidden" id="eventId" />
+          <label>Time A
+            <input value="PANDAS FC" disabled />
+          </label>
+          <label>Time B
+            <input id="opponentName" required placeholder="Nome do adversário" />
+          </label>
+          <label>Logo do adversário
+            <input id="opponentLogo" type="file" accept="image/*" />
+          </label>
+          <label>Data
+            <input id="matchDate" type="date" required />
+          </label>
+          <label>Hora
+            <input id="matchTime" type="time" required />
+          </label>
+          <label>Local
+            <input id="matchLocation" required placeholder="Local da partida" />
+          </label>
+          <div class="form-actions">
+            <button class="primary" type="submit">Salvar confronto</button>
+            <button class="ghost" type="button" id="cancelEventEdit">Cancelar edição</button>
+          </div>
+        </form>
+
+        <div class="agenda-grid">
+          <div class="card">
+            <div class="calendar-header">
+              <button id="prevMonth" class="ghost">◀</button>
+              <h3 id="calendarTitle"></h3>
+              <button id="nextMonth" class="ghost">▶</button>
+            </div>
+            <div id="calendar" class="calendar"></div>
+          </div>
+          <div class="card">
+            <h3>Próximos confrontos</h3>
+            <div id="eventsList" class="list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="estatisticas" class="page">
+        <div class="page-header">
+          <div><h2>📊 Estatísticas</h2><p>Dados calculados a partir das partidas finalizadas.</p></div>
+        </div>
+        <div id="statsCards" class="stats-grid"></div>
+        <div class="card">
+          <h3>Histórico de jogos</h3>
+          <div id="historyList" class="list"></div>
+        </div>
+      </section>
+
+      <section id="artilharia" class="page">
+        <div class="page-header">
+          <div><h2>🏆 Artilharia</h2><p>Informe os gols e acompanhe o ranking automaticamente.</p></div>
+        </div>
+        <div id="scorersList" class="card list"></div>
+      </section>
+
+      <section id="config" class="page">
+        <div class="page-header">
+          <div><h2>⚙️ Configurações</h2><p>Personalização e instalação.</p></div>
+        </div>
+        <div class="card config-grid">
+          <label>Logo do PANDAS FC
+            <input id="teamLogoInput" type="file" accept="image/*" />
+          </label>
+          <button id="notifyBtn" class="primary">🔔 Ativar notificações</button>
+          <button id="installBtn2" class="primary">📲 Instalar aplicativo</button>
+          <button id="clearDataBtn" class="danger">Apagar todos os dados</button>
+        </div>
+        <div class="card">
+          <h3>Instalação no Android</h3>
+          <p>Abra este site pelo Chrome e toque em <strong>Instalar aplicativo</strong>. Se o navegador não liberar a instalação automática, use o menu ⋮ do Chrome e escolha <strong>Instalar app</strong> ou <strong>Adicionar à tela inicial</strong>.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="./app.js"></script>
 </body>
 </html>
