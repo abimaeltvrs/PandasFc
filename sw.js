@@ -1,4 +1,4 @@
-const CACHE='pandas-fc-v20-desktop-layout';
+const CACHE='pandas-fc-v21-mobile-form-fix';
 
 // Somente o shell essencial é pré-carregado.
 // Imagens grandes como cabeçalho e campo serão armazenadas sob demanda.

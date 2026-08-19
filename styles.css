@@ -796,3 +796,193 @@ select option{
     min-height:calc(100vh - 210px) !important;
   }
 }
+
+/* =========================================================
+   CORREÇÃO MOBILE — AGENDA / CONFIGURAÇÕES / FORMULÁRIOS
+   ========================================================= */
+@media (max-width: 900px){
+
+  html, body{
+    width:100%;
+    max-width:100%;
+    overflow-x:hidden !important;
+  }
+
+  .content,
+  .page,
+  .card,
+  .form-grid,
+  .config-grid,
+  .config-section,
+  .agenda-grid{
+    width:100% !important;
+    max-width:100% !important;
+    min-width:0 !important;
+    box-sizing:border-box !important;
+  }
+
+  .content{
+    padding-left:14px !important;
+    padding-right:14px !important;
+  }
+
+  .form-grid,
+  .config-grid,
+  .config-section,
+  .agenda-grid{
+    display:grid !important;
+    grid-template-columns:minmax(0,1fr) !important;
+    gap:14px !important;
+  }
+
+  .form-grid label,
+  .config-grid label,
+  .config-section label{
+    width:100% !important;
+    max-width:100% !important;
+    min-width:0 !important;
+    display:flex !important;
+    flex-direction:column !important;
+  }
+
+  input,
+  select,
+  textarea,
+  .search,
+  .form-grid input,
+  .form-grid select,
+  .config-grid input,
+  .config-section input,
+  .config-section select{
+    width:100% !important;
+    max-width:100% !important;
+    min-width:0 !important;
+    box-sizing:border-box !important;
+  }
+
+  /* Campo de arquivo é o principal causador do estouro lateral */
+  input[type="file"]{
+    width:100% !important;
+    max-width:100% !important;
+    min-width:0 !important;
+    padding:8px !important;
+    overflow:hidden !important;
+    white-space:normal !important;
+    font-size:14px !important;
+  }
+
+  input[type="file"]::file-selector-button{
+    max-width:145px;
+    margin-right:8px;
+    padding:8px 10px;
+    border:0;
+    border-radius:8px;
+    background:#087fc1;
+    color:#fff;
+    font-weight:700;
+  }
+
+  .form-actions{
+    width:100% !important;
+    max-width:100% !important;
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:9px !important;
+  }
+
+  .form-actions button,
+  .primary,
+  .ghost,
+  .danger{
+    width:100%;
+    max-width:100%;
+    box-sizing:border-box;
+  }
+
+  .page-header{
+    width:100% !important;
+    max-width:100% !important;
+  }
+
+  /* Calendário */
+  .calendar{
+    width:100%;
+    min-width:0;
+    grid-template-columns:repeat(7,minmax(0,1fr)) !important;
+  }
+
+  .calendar .day,
+  .calendar .dow{
+    min-width:0;
+    padding:7px 2px !important;
+    font-size:12px;
+  }
+
+  /* Cards de confrontos */
+  .list-row{
+    width:100%;
+    max-width:100%;
+    min-width:0;
+    overflow:hidden;
+  }
+
+  .match-main{
+    width:100%;
+    min-width:0;
+  }
+
+  .match-main > div{
+    min-width:0;
+  }
+
+  /* Barra inferior: reduz largura dos itens para caber melhor */
+  .sidebar{
+    padding-left:5px !important;
+    padding-right:5px !important;
+    gap:5px !important;
+  }
+
+  .nav-btn{
+    min-width:92px !important;
+    max-width:118px !important;
+    height:50px !important;
+    padding:5px 7px !important;
+    font-size:11px !important;
+    line-height:1.15 !important;
+    text-align:center !important;
+    white-space:normal !important;
+  }
+}
+
+@media (max-width: 520px){
+
+  .content{
+    padding-left:10px !important;
+    padding-right:10px !important;
+  }
+
+  .card{
+    padding:15px !important;
+    border-radius:14px !important;
+  }
+
+  .page-header h2{
+    font-size:25px !important;
+  }
+
+  .page-header p{
+    font-size:14px !important;
+  }
+
+  .nav-btn{
+    min-width:88px !important;
+    max-width:108px !important;
+    font-size:10.5px !important;
+  }
+
+  input[type="file"]::file-selector-button{
+    max-width:125px;
+    padding:7px 8px;
+    font-size:12px;
+  }
+}

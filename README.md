@@ -114,3 +114,11 @@ A versão Web/Desktop agora possui:
 - vídeo/imagem sem estourar a tela;
 - formulários, Agenda, Estatísticas e Escalação adaptados para monitores;
 - versão mobile preservada.
+
+## Correção mobile Agenda e Configurações
+
+- campos não ultrapassam mais os cards;
+- seletor de arquivo foi ajustado;
+- Agenda e Configurações usam 100% da largura disponível;
+- botões ficam empilhados no celular;
+- barra inferior recebeu itens menores para evitar corte.
