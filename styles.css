@@ -328,3 +328,113 @@ button:focus-visible{
     align-items:stretch;
   }
 }
+
+/* =========================================================
+   MENU RESPONSIVO DEFINITIVO
+   Desktop: lateral fixa
+   Celular: barra fixa na parte inferior
+   ========================================================= */
+
+@media (min-width: 901px){
+  .sidebar{
+    position:sticky !important;
+    top:86px !important;
+    height:calc(100vh - 86px) !important;
+    overflow-y:auto !important;
+    overflow-x:hidden !important;
+    z-index:30 !important;
+  }
+}
+
+/* Barra inferior permanente no celular/tablet */
+@media (max-width: 900px){
+  body{
+    padding-bottom:78px !important;
+  }
+
+  .layout{
+    display:block !important;
+    min-height:0 !important;
+  }
+
+  .sidebar{
+    position:fixed !important;
+    left:0 !important;
+    right:0 !important;
+    bottom:0 !important;
+    top:auto !important;
+    width:100% !important;
+    height:72px !important;
+    max-height:72px !important;
+    padding:7px 8px !important;
+    margin:0 !important;
+    display:flex !important;
+    flex-direction:row !important;
+    align-items:center !important;
+    gap:6px !important;
+    overflow-x:auto !important;
+    overflow-y:hidden !important;
+    white-space:nowrap !important;
+    background:#071927 !important;
+    border-top:2px solid #087fc1 !important;
+    box-shadow:0 -5px 18px rgba(0,0,0,.28) !important;
+    z-index:9999 !important;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+
+  .sidebar::-webkit-scrollbar{
+    display:none;
+  }
+
+  .nav-btn{
+    flex:0 0 auto !important;
+    min-width:116px !important;
+    height:54px !important;
+    padding:7px 10px !important;
+    border-radius:10px !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    text-align:center !important;
+    white-space:nowrap !important;
+    font-size:13px !important;
+    background:rgba(255,255,255,.06) !important;
+    color:#fff !important;
+  }
+
+  .nav-btn.active,
+  .nav-btn:hover{
+    background:#087fc1 !important;
+    color:#fff !important;
+  }
+
+  .content{
+    width:100% !important;
+    padding-bottom:18px !important;
+  }
+
+  #dashboard{
+    margin-bottom:0 !important;
+  }
+}
+
+/* Telefones menores */
+@media (max-width: 520px){
+  body{
+    padding-bottom:72px !important;
+  }
+
+  .sidebar{
+    height:66px !important;
+    max-height:66px !important;
+    padding:6px !important;
+  }
+
+  .nav-btn{
+    min-width:105px !important;
+    height:50px !important;
+    font-size:12px !important;
+    padding:6px 8px !important;
+  }
+}

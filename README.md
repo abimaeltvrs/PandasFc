@@ -80,3 +80,9 @@ igual ao campo exibido na tela da Escalação.
 A barra de menu agora permanece visível durante a rolagem.
 No desktop, o menu lateral fica fixo na lateral.
 No celular, a barra horizontal permanece presa no topo.
+
+## Menu móvel fixo
+
+No celular e tablet, o menu agora fica permanentemente fixado na parte inferior da tela.
+Os itens podem ser deslizados horizontalmente, mas a barra não desaparece ao rolar a página.
+No desktop, o menu permanece fixo na lateral.
