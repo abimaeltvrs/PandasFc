@@ -15,3 +15,4 @@ O endereço será `https://SEU-USUARIO.github.io/NOME-DO-REPOSITORIO/`.
 ## Dados
 
 Os jogadores, partidas, logo e estatísticas são salvos no `localStorage` do navegador/dispositivo.
+
