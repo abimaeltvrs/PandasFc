@@ -44,3 +44,14 @@ O service worker desta versão usa o cache `pandas-fc-v5-firebase`. Depois de pu
 
 ## Cabeçalho
 Esta versão inclui a arte `header-pandas-fc.png` como cabeçalho responsivo do site e do PWA.
+
+## Mídia no Dashboard
+
+Em **Configurações → Mídia do Início / Dashboard** é possível:
+- enviar PNG;
+- enviar GIF;
+- enviar MP4;
+- enviar WebM;
+- usar uma URL de mídia.
+
+Arquivos enviados diretamente têm limite de 650 KB para permanecer dentro do limite de documentos do Firestore. Para vídeos maiores, use a opção de URL.

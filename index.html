@@ -37,11 +37,16 @@
     <main class="content">
       <section id="dashboard" class="page active">
         <div class="dashboard-logo-wrap">
-          <img id="dashboardLogo" class="dashboard-logo hidden" alt="Logo PANDAS FC" />
-          <div id="dashboardPlaceholder" class="logo-placeholder">
-            <div class="big-panda">🐼</div>
-            <h1>PANDAS FC</h1>
-            <p>Envie a logo oficial em Configurações.</p>
+          <div id="dashboardMediaStage" class="dashboard-media-stage">
+            <img id="dashboardMediaImage" class="dashboard-media hidden" alt="Mídia do PANDAS FC" />
+            <video id="dashboardMediaVideo" class="dashboard-media hidden" autoplay muted loop playsinline controls></video>
+
+            <img id="dashboardLogo" class="dashboard-logo hidden" alt="Logo PANDAS FC" />
+            <div id="dashboardPlaceholder" class="logo-placeholder">
+              <div class="big-panda">🐼</div>
+              <h1>PANDAS FC</h1>
+              <p>Adicione uma imagem, GIF ou vídeo em Configurações.</p>
+            </div>
           </div>
         </div>
       </section>
@@ -188,6 +193,20 @@
           </label>
           <button id="notifyBtn" class="primary">🔔 Ativar notificações</button>
           <button id="installBtn2" class="primary">📲 Instalar aplicativo</button>
+          <div class="config-section">
+            <h3>🎬 Mídia do Início / Dashboard</h3>
+            <p class="muted">Aceita PNG, GIF, MP4 e WebM. Arquivos enviados diretamente devem ter até 650 KB para sincronizar pelo Firestore.</p>
+            <label>Enviar arquivo
+              <input id="dashboardMediaInput" type="file" accept="image/png,image/gif,video/mp4,video/webm" />
+            </label>
+            <label>Ou usar uma URL de mídia
+              <input id="dashboardMediaUrl" type="url" placeholder="https://..." />
+            </label>
+            <div class="form-actions">
+              <button id="saveDashboardMediaUrl" class="primary" type="button">Salvar URL</button>
+              <button id="removeDashboardMedia" class="danger" type="button">Remover mídia</button>
+            </div>
+          </div>
           <button id="migrateBtn" class="ghost">⬆️ Importar dados antigos deste dispositivo</button>
           <button id="clearDataBtn" class="danger">Apagar dados do Firebase</button>
         </div>

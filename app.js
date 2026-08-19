@@ -21,7 +21,12 @@ const state = {
   players: [],
   events: [],
   teamLogo: "",
-  selectedLineup: []
+  selectedLineup: [],
+  dashboardMedia: {
+    type: "",
+    data: "",
+    url: ""
+  }
 };
 
 let firebaseReady = false;
@@ -58,6 +63,15 @@ function fileToCompressedDataURL(file, maxSize=500, quality=.72){
   });
 }
 
+function fileToDataURL(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(reader.result);
+    reader.onerror=reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 function markWriting(){
   setSyncStatus("☁️ Sincronizando...");
 }
@@ -83,6 +97,18 @@ function connectRealtime(){
     firebaseReady = true;
     setSyncStatus("☁️ Sincronizado","ok");
     renderLogo();
+  }, err=>syncError(err));
+
+  onSnapshot(doc(db,"settings","dashboard"), snap=>{
+    const d = snap.exists() ? snap.data() : {};
+    state.dashboardMedia = {
+      type: d.mediaType || "",
+      data: d.mediaData || "",
+      url: d.mediaUrl || ""
+    };
+    firebaseReady = true;
+    setSyncStatus("☁️ Sincronizado","ok");
+    renderDashboardMedia();
   }, err=>syncError(err));
 
   onSnapshot(doc(db,"lineup","current"), snap=>{
@@ -303,16 +329,141 @@ function renderLogo(){
   const ph=document.getElementById('dashboardPlaceholder');
   const headerImg=document.getElementById('headerLogo');
   const headerFallback=document.getElementById('headerLogoFallback');
-  if(state.teamLogo){
-    img.src=state.teamLogo; img.classList.remove('hidden'); ph.classList.add('hidden');
-    if(headerImg){headerImg.src=state.teamLogo;headerImg.classList.remove('hidden');}
-    if(headerFallback)headerFallback.classList.add('hidden');
+
+  if(headerImg && state.teamLogo){
+    headerImg.src=state.teamLogo;
+    headerImg.classList.remove('hidden');
+    if(headerFallback) headerFallback.classList.add('hidden');
   }else{
-    img.classList.add('hidden'); ph.classList.remove('hidden');
-    if(headerImg)headerImg.classList.add('hidden');
-    if(headerFallback)headerFallback.classList.remove('hidden');
+    if(headerImg) headerImg.classList.add('hidden');
+    if(headerFallback) headerFallback.classList.remove('hidden');
+  }
+
+  if(state.dashboardMedia?.data || state.dashboardMedia?.url){
+    img.classList.add('hidden');
+    ph.classList.add('hidden');
+    return;
+  }
+
+  if(state.teamLogo){
+    img.src=state.teamLogo;
+    img.classList.remove('hidden');
+    ph.classList.add('hidden');
+  }else{
+    img.classList.add('hidden');
+    ph.classList.remove('hidden');
   }
 }
+
+
+function renderDashboardMedia(){
+  const img=document.getElementById('dashboardMediaImage');
+  const video=document.getElementById('dashboardMediaVideo');
+  const logo=document.getElementById('dashboardLogo');
+  const ph=document.getElementById('dashboardPlaceholder');
+  if(!img || !video) return;
+
+  img.classList.add('hidden');
+  video.classList.add('hidden');
+  video.pause();
+  video.removeAttribute('src');
+
+  const media=state.dashboardMedia || {};
+  const src=media.data || media.url || '';
+
+  if(!src){
+    renderLogo();
+    return;
+  }
+
+  logo.classList.add('hidden');
+  ph.classList.add('hidden');
+
+  const type=(media.type || '').toLowerCase();
+  const isVideo=type.startsWith('video/') || /\.(mp4|webm)(\?|#|$)/i.test(src);
+
+  if(isVideo){
+    video.src=src;
+    video.classList.remove('hidden');
+    video.load();
+    video.play().catch(()=>{});
+  }else{
+    img.src=src;
+    img.classList.remove('hidden');
+  }
+}
+
+document.getElementById('dashboardMediaInput').addEventListener('change', async e=>{
+  const file=e.target.files?.[0];
+  if(!file) return;
+
+  const allowed=['image/png','image/gif','video/mp4','video/webm'];
+  if(!allowed.includes(file.type)){
+    alert('Formato não suportado. Use PNG, GIF, MP4 ou WebM.');
+    e.target.value='';
+    return;
+  }
+
+  if(file.size > 650 * 1024){
+    alert('Esse arquivo é maior que 650 KB. Para vídeos maiores, hospede o arquivo em outro serviço e use o campo de URL.');
+    e.target.value='';
+    return;
+  }
+
+  try{
+    markWriting();
+    const data=await fileToDataURL(file);
+    await setDoc(doc(db,'settings','dashboard'),{
+      mediaType:file.type,
+      mediaData:data,
+      mediaUrl:'',
+      updatedAt:serverTimestamp()
+    },{merge:true});
+    document.getElementById('dashboardMediaUrl').value='';
+    toast('Mídia do Dashboard atualizada e sincronizada.');
+  }catch(err){syncError(err);}
+});
+
+document.getElementById('saveDashboardMediaUrl').onclick=async()=>{
+  const url=document.getElementById('dashboardMediaUrl').value.trim();
+  if(!url){
+    alert('Informe uma URL.');
+    return;
+  }
+
+  const lower=url.toLowerCase();
+  let type='image/remote';
+  if(/\.(mp4)(\?|#|$)/i.test(lower)) type='video/mp4';
+  else if(/\.(webm)(\?|#|$)/i.test(lower)) type='video/webm';
+  else if(/\.(gif)(\?|#|$)/i.test(lower)) type='image/gif';
+  else if(/\.(png)(\?|#|$)/i.test(lower)) type='image/png';
+
+  try{
+    markWriting();
+    await setDoc(doc(db,'settings','dashboard'),{
+      mediaType:type,
+      mediaData:'',
+      mediaUrl:url,
+      updatedAt:serverTimestamp()
+    },{merge:true});
+    toast('URL do Dashboard salva e sincronizada.');
+  }catch(err){syncError(err);}
+};
+
+document.getElementById('removeDashboardMedia').onclick=async()=>{
+  if(!confirm('Remover a mídia do Início / Dashboard em todos os dispositivos?')) return;
+  try{
+    markWriting();
+    await setDoc(doc(db,'settings','dashboard'),{
+      mediaType:'',
+      mediaData:'',
+      mediaUrl:'',
+      updatedAt:serverTimestamp()
+    },{merge:true});
+    document.getElementById('dashboardMediaUrl').value='';
+    toast('Mídia removida.');
+  }catch(err){syncError(err);}
+};
 
 document.getElementById('clearDataBtn').onclick=async()=>{
   if(!confirm('Apagar jogadores, partidas, escalação e logo do Firebase? Isso afetará todos os dispositivos.'))return;
@@ -323,6 +474,7 @@ document.getElementById('clearDataBtn').onclick=async()=>{
     const es=await getDocs(collection(db,"events"));
     await Promise.all(es.docs.map(d=>deleteDoc(d.ref)));
     await deleteDoc(doc(db,"settings","team")).catch(()=>{});
+    await deleteDoc(doc(db,"settings","dashboard")).catch(()=>{});
     await deleteDoc(doc(db,"lineup","current")).catch(()=>{});
     toast('Dados do Firebase apagados.');
   }catch(err){syncError(err);}
@@ -382,5 +534,5 @@ window.generatePoster=generatePoster;
 window.setScore=setScore;
 window.setGoals=setGoals;
 
-renderPlayers(); renderLineup(); renderEvents(); renderMatches(); renderStats(); renderScorers(); renderCalendar(); renderLogo();
+renderPlayers(); renderLineup(); renderEvents(); renderMatches(); renderStats(); renderScorers(); renderCalendar(); renderLogo(); renderDashboardMedia();
 connectRealtime();
