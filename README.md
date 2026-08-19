@@ -65,3 +65,7 @@ A URL agora possui um seletor de tipo:
 - YouTube
 
 Para vídeos hospedados fora do YouTube, prefira um **link direto para o arquivo**. Links para páginas de compartilhamento nem sempre podem ser reproduzidos pelo navegador.
+
+## Dashboard em tela cheia
+
+O Início / Dashboard agora possui fundo preto e a mídia enviada ocupa toda a área disponível usando `object-fit: cover`.
