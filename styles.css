@@ -988,49 +988,31 @@ select option{
 }
 
 
-/* OneSignal / notificações push */
-.notification-control{
+/* Diagnóstico OneSignal / Web Push */
+.push-diagnostic{grid-column:1/-1}
+.diagnostic-grid{
+  grid-column:1/-1;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+.diagnostic-grid>div{
+  min-width:0;
+  padding:11px 12px;
+  border-radius:11px;
+  border:1px solid rgba(65,170,255,.20);
+  background:rgba(2,14,28,.55);
   display:flex;
   flex-direction:column;
-  gap:6px;
-  min-width:0;
-}
-.notification-control .primary{
-  width:100%;
-}
-.push-status{
-  color:#a8bdd1;
-  font-size:12px;
-  line-height:1.25;
-}
-.push-status.ok{color:#78e59a}
-.push-status.err{color:#ff9a9a}
-
-
-/* =========================================================
-   ALERTAS ANTECIPADOS — AGENDA
-   ========================================================= */
-.alert-chip{
-  display:inline-flex;
-  align-items:center;
   gap:5px;
-  margin-top:7px;
-  padding:5px 9px;
-  border-radius:999px;
-  background:rgba(8,127,193,.18);
-  border:1px solid rgba(20,168,245,.35);
-  color:#bce8ff;
-  font-size:12px;
-  font-weight:700;
 }
-
-#customAlertWrap.hidden{
-  display:none !important;
-}
-
-#matchAlert,
-#customAlertTime{
-  width:100%;
-  max-width:100%;
-  box-sizing:border-box;
+.diagnostic-grid span{color:#9db1c5;font-size:12px;font-weight:700}
+.diagnostic-grid strong{color:#fff;font-size:13px;word-break:break-all}
+.diag-ok{color:#78e59a!important}
+.diag-bad{color:#ffb0a9!important}
+.diagnostic-value{font-size:11px!important;line-height:1.3}
+@media(max-width:700px){
+  .diagnostic-grid{grid-template-columns:1fr}
+  .push-diagnostic .form-actions{display:grid!important;grid-template-columns:1fr!important}
+  .push-diagnostic .form-actions button{width:100%}
 }

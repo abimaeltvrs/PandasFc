@@ -248,6 +248,30 @@
             <button id="notifyBtn" class="primary">🔔 Ativar notificações</button>
             <small id="pushStatus" class="push-status">OneSignal: aguardando...</small>
           </div>
+
+          <div class="push-diagnostic config-section">
+            <h3>🧪 Diagnóstico de notificações</h3>
+            <p class="muted">Mostra o estado real do Push no navegador e no OneSignal.</p>
+
+            <div class="diagnostic-grid">
+              <div><span>Permissão do navegador</span><strong id="diagPermission">—</strong></div>
+              <div><span>OneSignal carregado</span><strong id="diagOneSignal">—</strong></div>
+              <div><span>Inscrito no Push</span><strong id="diagOptedIn">—</strong></div>
+              <div><span>Subscription ID</span><strong id="diagSubscriptionId">—</strong></div>
+              <div><span>Token Push</span><strong id="diagPushToken">—</strong></div>
+              <div><span>Push do navegador</span><strong id="diagBrowserPush">—</strong></div>
+              <div><span>Service Worker</span><strong id="diagServiceWorker">—</strong></div>
+              <div><span>Escopo do Worker</span><strong id="diagWorkerScope">—</strong></div>
+            </div>
+
+            <div class="form-actions">
+              <button id="refreshPushDiag" class="ghost" type="button">🔄 Atualizar diagnóstico</button>
+              <button id="recreatePushBtn" class="primary" type="button">🛠️ Recriar inscrição Push</button>
+            </div>
+
+            <small id="diagMessage" class="push-status"></small>
+          </div>
+
           <button id="installBtn2" class="primary">📲 Instalar aplicativo</button>
           <div class="config-section">
             <h3>🎬 Mídia do Início / Dashboard</h3>

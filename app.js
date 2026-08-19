@@ -925,75 +925,199 @@ document.getElementById('migrateBtn').onclick=async()=>{
 const notifyBtn=document.getElementById('notifyBtn');
 const pushStatus=document.getElementById('pushStatus');
 
+const diagEls={
+  permission:document.getElementById('diagPermission'),
+  oneSignal:document.getElementById('diagOneSignal'),
+  optedIn:document.getElementById('diagOptedIn'),
+  subscriptionId:document.getElementById('diagSubscriptionId'),
+  pushToken:document.getElementById('diagPushToken'),
+  browserPush:document.getElementById('diagBrowserPush'),
+  serviceWorker:document.getElementById('diagServiceWorker'),
+  workerScope:document.getElementById('diagWorkerScope'),
+  message:document.getElementById('diagMessage')
+};
+
 function setPushStatus(text,type=''){
   if(!pushStatus)return;
   pushStatus.textContent=text;
   pushStatus.className=`push-status ${type}`.trim();
 }
+function setDiag(el,value,type=''){
+  if(!el)return;
+  el.textContent=value;
+  el.className=type;
+}
+function wait(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+async function getBrowserPushInfo(){
+  const result={hasRegistration:false,hasSubscription:false,scriptURL:'',scope:''};
+  if(!('serviceWorker' in navigator))return result;
+  try{
+    const regs=await navigator.serviceWorker.getRegistrations();
+    const reg=regs.find(r=>String(r.scope||'').includes('/PandasFc/')) || regs[0];
+    if(reg){
+      result.hasRegistration=true;
+      result.scope=reg.scope||'';
+      result.scriptURL=reg.active?.scriptURL||reg.waiting?.scriptURL||reg.installing?.scriptURL||'';
+      try{ result.hasSubscription=!!(await reg.pushManager.getSubscription()); }catch{}
+    }
+  }catch(err){ console.warn('Diagnóstico SW:',err); }
+  return result;
+}
+
+async function getPushDiagnostic(){
+  const browserPermission=('Notification' in window)?Notification.permission:'unsupported';
+  const OneSignal=window.PandasOneSignal;
+  const browserPush=await getBrowserPushInfo();
+  let optedIn=false, subscriptionId='', token='';
+  if(OneSignal){
+    try{
+      optedIn=!!OneSignal.User.PushSubscription.optedIn;
+      subscriptionId=OneSignal.User.PushSubscription.id||'';
+      token=OneSignal.User.PushSubscription.token||'';
+    }catch(err){ console.warn('Leitura OneSignal:',err); }
+  }
+  return {browserPermission,oneSignalLoaded:!!OneSignal,optedIn,subscriptionId,token,...browserPush};
+}
+
+async function renderPushDiagnostic(){
+  const d=await getPushDiagnostic();
+
+  setDiag(diagEls.permission,
+    d.browserPermission==='granted'?'GRANTED ✅':
+    d.browserPermission==='denied'?'BLOQUEADA ❌':
+    d.browserPermission==='default'?'AGUARDANDO ⚠️':'NÃO SUPORTADO ❌',
+    d.browserPermission==='granted'?'diag-ok':'diag-bad');
+
+  setDiag(diagEls.oneSignal,d.oneSignalLoaded?'SIM ✅':'NÃO ❌',d.oneSignalLoaded?'diag-ok':'diag-bad');
+  setDiag(diagEls.optedIn,
+    d.optedIn&&d.subscriptionId?'SIM ✅':
+    d.optedIn&&!d.subscriptionId?'INCONSISTENTE ⚠️':'NÃO ❌',
+    d.optedIn&&d.subscriptionId?'diag-ok':'diag-bad');
+
+  setDiag(diagEls.subscriptionId,d.subscriptionId||'NENHUM ❌',
+    d.subscriptionId?'diag-ok diagnostic-value':'diag-bad diagnostic-value');
+  setDiag(diagEls.pushToken,d.token?'DISPONÍVEL ✅':'NENHUM ❌',d.token?'diag-ok':'diag-bad');
+  setDiag(diagEls.browserPush,d.hasSubscription?'EXISTE ✅':'NÃO EXISTE ❌',d.hasSubscription?'diag-ok':'diag-bad');
+  setDiag(diagEls.serviceWorker,
+    d.hasRegistration?(d.scriptURL?d.scriptURL.split('/').pop()+' ✅':'REGISTRADO ✅'):'NÃO REGISTRADO ❌',
+    d.hasRegistration?'diag-ok diagnostic-value':'diag-bad');
+  setDiag(diagEls.workerScope,d.scope||'NENHUM',d.scope?'diagnostic-value':'diag-bad');
+
+  if(diagEls.message){
+    if(d.browserPermission==='granted'&&d.optedIn&&d.subscriptionId&&d.hasSubscription){
+      diagEls.message.textContent='✅ Push está completamente inscrito.';
+      diagEls.message.className='push-status ok';
+    }else if(d.browserPermission==='granted'&&!d.subscriptionId){
+      diagEls.message.textContent='⚠️ O navegador permite notificações, mas não existe Subscription ID no OneSignal.';
+      diagEls.message.className='push-status err';
+    }else{
+      diagEls.message.textContent='Use “Recriar inscrição Push” para tentar corrigir.';
+      diagEls.message.className='push-status';
+    }
+  }
+  return d;
+}
 
 async function refreshPushStatus(){
-  const OneSignal=window.PandasOneSignal;
-  if(!OneSignal){
-    setPushStatus('OneSignal: conectando...');
-    return;
-  }
-
-  try{
-    const permission=OneSignal.Notifications.permission;
-    const optedIn=OneSignal.User.PushSubscription.optedIn;
-
-    if(permission && optedIn){
-      setPushStatus('✅ Notificações push ativadas','ok');
-      if(notifyBtn) notifyBtn.textContent='🔔 Notificações ativadas';
-    }else if(Notification.permission==='denied'){
-      setPushStatus('🚫 Notificações bloqueadas no navegador','err');
-      if(notifyBtn) notifyBtn.textContent='🔕 Notificações bloqueadas';
-    }else{
-      setPushStatus('🔔 Toque para permitir notificações');
-      if(notifyBtn) notifyBtn.textContent='🔔 Ativar notificações';
-    }
-  }catch(err){
-    console.error('Erro ao consultar OneSignal:',err);
-    setPushStatus('⚠️ Não foi possível verificar o push','err');
+  const d=await renderPushDiagnostic();
+  if(d.browserPermission==='granted'&&d.optedIn&&d.subscriptionId){
+    setPushStatus('✅ Notificações push realmente inscritas','ok');
+    if(notifyBtn)notifyBtn.textContent='🔔 Notificações ativadas';
+  }else if(d.browserPermission==='denied'){
+    setPushStatus('🚫 Notificações bloqueadas no navegador','err');
+    if(notifyBtn)notifyBtn.textContent='🔕 Notificações bloqueadas';
+  }else if(d.oneSignalLoaded&&d.browserPermission==='granted'&&!d.subscriptionId){
+    setPushStatus('⚠️ Permitido, mas sem inscrição no OneSignal','err');
+    if(notifyBtn)notifyBtn.textContent='🛠️ Criar inscrição Push';
+  }else{
+    setPushStatus('🔔 Toque para permitir/inscrever notificações');
+    if(notifyBtn)notifyBtn.textContent='🔔 Ativar notificações';
   }
 }
 
 async function enablePushNotifications(){
   const OneSignal=window.PandasOneSignal;
-  if(!OneSignal){
-    toast('OneSignal ainda está carregando. Tente novamente em alguns segundos.');
-    return;
-  }
-
+  if(!OneSignal){ toast('OneSignal ainda está carregando.'); return; }
   try{
-    await OneSignal.Notifications.requestPermission();
-
+    if(Notification.permission!=='granted') await OneSignal.Notifications.requestPermission();
     if(OneSignal.Notifications.permission){
       await OneSignal.User.PushSubscription.optIn();
-      toast('Notificações push ativadas.');
-    }else{
-      toast('Permissão de notificações não concedida.');
+      await wait(1500);
     }
-
     await refreshPushStatus();
+    toast(OneSignal.User.PushSubscription.id?'Push ativado e inscrito.':'Permissão concedida, mas sem Subscription ID.');
   }catch(err){
-    console.error('Erro ao ativar OneSignal:',err);
-    toast('Não foi possível ativar as notificações.');
+    console.error(err);
     setPushStatus('⚠️ Erro ao ativar notificações','err');
+    await renderPushDiagnostic();
   }
 }
 
-if(notifyBtn) notifyBtn.onclick=enablePushNotifications;
+async function recreatePushSubscription(){
+  const OneSignal=window.PandasOneSignal;
+  if(!OneSignal){ alert('OneSignal ainda está carregando. Tente novamente em alguns segundos.'); return; }
+
+  const btn=document.getElementById('recreatePushBtn');
+  const oldText=btn?.textContent;
+  try{
+    if(btn){ btn.disabled=true; btn.textContent='⏳ Recriando inscrição...'; }
+
+    if(Notification.permission!=='granted') await OneSignal.Notifications.requestPermission();
+    if(Notification.permission!=='granted') throw new Error('Permissão de notificações não concedida.');
+
+    try{ await OneSignal.User.PushSubscription.optOut(); }catch{}
+    await wait(500);
+
+    try{
+      const regs=await navigator.serviceWorker.getRegistrations();
+      const reg=regs.find(r=>String(r.scope||'').includes('/PandasFc/'))||regs[0];
+      if(reg){
+        const nativeSub=await reg.pushManager.getSubscription();
+        if(nativeSub) await nativeSub.unsubscribe();
+      }
+    }catch(err){ console.warn('Reset Push nativo:',err); }
+
+    await wait(800);
+    await OneSignal.User.PushSubscription.optIn();
+
+    let newId='';
+    for(let i=0;i<10;i++){
+      await wait(700);
+      newId=OneSignal.User.PushSubscription.id||'';
+      if(newId)break;
+    }
+
+    await refreshPushStatus();
+
+    if(newId){
+      alert('Inscrição Push recriada com sucesso!\\n\\nSubscription ID:\\n'+newId+'\\n\\nAtualize Audience → Subscriptions no OneSignal.');
+    }else{
+      alert('Ainda não foi criado um Subscription ID. Tire um print do painel de diagnóstico e me envie.');
+    }
+  }catch(err){
+    console.error(err);
+    alert('Erro ao recriar inscrição Push:\\n\\n'+(err?.message||err));
+    await refreshPushStatus();
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent=oldText||'🛠️ Recriar inscrição Push'; }
+  }
+}
+
+if(notifyBtn)notifyBtn.onclick=enablePushNotifications;
+document.getElementById('refreshPushDiag')?.addEventListener('click',refreshPushStatus);
+document.getElementById('recreatePushBtn')?.addEventListener('click',recreatePushSubscription);
 
 window.addEventListener('pandas-onesignal-ready',()=>{
   refreshPushStatus();
-
   try{
     window.PandasOneSignal.Notifications.addEventListener('permissionChange',refreshPushStatus);
-    window.PandasOneSignal.User.PushSubscription.addEventListener('change',refreshPushStatus);
-  }catch(err){
-    console.warn('Listener OneSignal:',err);
-  }
+    window.PandasOneSignal.User.PushSubscription.addEventListener('change',()=>setTimeout(refreshPushStatus,300));
+  }catch(err){ console.warn('Listener OneSignal:',err); }
+});
+
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden)setTimeout(refreshPushStatus,400);
 });
 
 /* Mantido apenas como fallback visual quando o aplicativo estiver aberto.
@@ -1080,7 +1204,15 @@ window.matchMedia('(display-mode: standalone)').addEventListener?.('change',upda
 updateInstallUI();
 
 if('serviceWorker'in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.error));
+  window.addEventListener('load',async()=>{
+    try{
+      await navigator.serviceWorker.register('./sw.js',{scope:'./'});
+      await navigator.serviceWorker.ready;
+      setTimeout(()=>refreshPushStatus().catch(()=>{}),500);
+    }catch(err){
+      console.error('Erro ao registrar sw.js:',err);
+    }
+  });
 }
 
 window.editPlayer=editPlayer;
