@@ -271,3 +271,20 @@ button:focus-visible{
     height:calc(100vh - 64px);
   }
 }
+
+/* Campo personalizado PANDAS FC - Escalação */
+.soccer-field{
+  background-image:url('./campo-pandas-fc.png') !important;
+  background-size:cover !important;
+  background-position:center !important;
+  background-repeat:no-repeat !important;
+  border:0 !important;
+  aspect-ratio:1024/1536 !important;
+  overflow:hidden;
+}
+/* A arte já contém todas as linhas oficiais do campo. */
+.soccer-field .field-half,
+.soccer-field .field-circle,
+.soccer-field .penalty{display:none !important;}
+/* Jogadores continuam sobre a arte. */
+.field-player{z-index:3;}
