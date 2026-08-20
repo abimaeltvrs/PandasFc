@@ -48,10 +48,39 @@
   </script>
 
 </head>
-<body>
+<body class="auth-pending">
+  <div id="authGate" class="auth-gate">
+    <div class="auth-card">
+      <img src="./icon-192.png" class="auth-logo" alt="PANDAS FC">
+      <h1>🐼 PANDAS FC</h1>
+      <p class="auth-subtitle">Acesso ao sistema</p>
+
+      <form id="loginForm" class="auth-form">
+        <label>E-mail<input id="loginEmail" type="email" autocomplete="email" required placeholder="seuemail@exemplo.com"></label>
+        <label>Senha<input id="loginPassword" type="password" autocomplete="current-password" required minlength="6" placeholder="Sua senha"></label>
+        <button class="primary auth-main-btn" type="submit">ENTRAR</button>
+        <button id="showRegisterBtn" class="ghost" type="button">CRIAR CONTA</button>
+        <button id="forgotPasswordBtn" class="auth-link" type="button">Esqueci minha senha</button>
+      </form>
+
+      <form id="registerForm" class="auth-form hidden">
+        <label>Nome<input id="registerName" required maxlength="60" autocomplete="name" placeholder="Seu nome"></label>
+        <label>E-mail<input id="registerEmail" type="email" autocomplete="email" required placeholder="seuemail@exemplo.com"></label>
+        <label>Senha<input id="registerPassword" type="password" autocomplete="new-password" required minlength="6" placeholder="Mínimo de 6 caracteres"></label>
+        <label>Confirmar senha<input id="registerPassword2" type="password" autocomplete="new-password" required minlength="6" placeholder="Repita a senha"></label>
+        <button class="primary auth-main-btn" type="submit">CRIAR CONTA</button>
+        <button id="backToLoginBtn" class="ghost" type="button">VOLTAR AO LOGIN</button>
+      </form>
+      <p id="authMessage" class="auth-message"></p>
+    </div>
+  </div>
   <header class="topbar header-art">
     <img class="header-art-image" src="./header-pandas-fc.png" alt="PANDAS FC - Pandas Futebol Clube">
     <div class="header-art-actions">
+      <div id="userSession" class="user-session hidden">
+        <div class="user-session-text"><strong id="sessionUserName">Usuário</strong><span id="sessionRole">JOGADOR</span></div>
+        <button id="logoutBtn" class="logout-btn" type="button">Sair</button>
+      </div>
       <span id="syncStatus" class="sync-status">☁️ Conectando...</span>
       <button id="installBtn" class="install-btn">📲 Instalar aplicativo</button>
     </div>
@@ -60,7 +89,7 @@
   <div class="layout">
     <aside class="sidebar">
       <button class="nav-btn active" data-page="dashboard">🐼 Início / Dashboard</button>
-      <button class="nav-btn" data-page="cadastro">👤 Cadastro de Jogadores</button>
+      <button class="nav-btn admin-only" data-page="cadastro">👤 Cadastro de Jogadores</button>
       <button class="nav-btn" data-page="elenco">📋 Elenco</button>
       <button class="nav-btn" data-page="escalacao">⚽ Escalação</button>
       <button class="nav-btn" data-page="partidas">⚽ Partidas</button>
@@ -93,7 +122,7 @@
         <div class="page-header">
           <div><h2>👤 Cadastro de Jogadores</h2><p>Cadastre nome, posição e número.</p></div>
         </div>
-        <form id="playerForm" class="card form-grid">
+        <form id="playerForm" class="card form-grid admin-only">
           <input type="hidden" id="playerId" />
           <label>Nome
             <input id="playerName" required placeholder="Ex.: Tavares" />
@@ -161,7 +190,7 @@
           <div><h2>📅 Agenda</h2><p>Cadastre confrontos do PANDAS FC.</p></div>
         </div>
 
-        <form id="eventForm" class="card form-grid">
+        <form id="eventForm" class="card form-grid admin-only">
           <input type="hidden" id="eventId" />
           <label>Time A
             <input value="PANDAS FC" disabled />
@@ -243,7 +272,7 @@
           <div><h2>⚙️ Configurações</h2><p>Personalização e instalação.</p></div>
         </div>
         <div class="card config-grid">
-          <label>Logo do PANDAS FC
+          <label class="admin-only">Logo do PANDAS FC
             <input id="teamLogoInput" type="file" accept="image/*" />
           </label>
           <div class="notification-control">
@@ -286,7 +315,7 @@
           </div>
 
           <button id="installBtn2" class="primary">📲 Instalar aplicativo</button>
-          <div class="config-section">
+          <div class="config-section admin-only">
             <h3>🎬 Mídia do Início / Dashboard</h3>
             <p class="muted">Aceita PNG, GIF, MP4 e WebM. Arquivos enviados diretamente devem ter até 650 KB para sincronizar pelo Firestore.</p>
             <label>Enviar arquivo
@@ -308,8 +337,8 @@
               <button id="removeDashboardMedia" class="danger" type="button">Remover mídia</button>
             </div>
           </div>
-          <button id="migrateBtn" class="ghost">⬆️ Importar dados antigos deste dispositivo</button>
-          <button id="clearDataBtn" class="danger">Apagar dados do Firebase</button>
+          <button id="migrateBtn" class="ghost admin-only">⬆️ Importar dados antigos deste dispositivo</button>
+          <button id="clearDataBtn" class="danger admin-only">Apagar dados do Firebase</button>
         </div>
         <div class="card">
           <h3>Instalação no Android</h3>

@@ -122,3 +122,14 @@ A versão Web/Desktop agora possui:
 - Agenda e Configurações usam 100% da largura disponível;
 - botões ficam empilhados no celular;
 - barra inferior recebeu itens menores para evitar corte.
+
+
+## Login e segurança (Firebase Authentication)
+
+Esta versão usa Firebase Authentication por e-mail/senha.
+
+Perfis:
+- DIRETORIA: os três e-mails configurados no app; para ter permissão de escrita o e-mail precisa estar verificado.
+- JOGADOR: qualquer outro usuário autenticado; acesso somente leitura.
+
+IMPORTANTE: publique o conteúdo de `firestore.rules` em Firebase Console > Firestore Database > Regras. Sem essa etapa, esconder botões no app não protege o banco de dados.

@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isDirector() {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in [
+          'abimaeltablet@gmail.com',
+          'marcelo.vst@hotmail.com',
+          'marcioviniciustabosa@gmail.com'
+        ];
+    }
+
+    // Qualquer usuário autenticado (JOGADOR ou DIRETORIA) pode visualizar.
+    // Somente a DIRETORIA com e-mail verificado pode criar, editar ou excluir.
+    match /{document=**} {
+      allow read: if signedIn();
+      allow create, update, delete: if isDirector();
+    }
+  }
+}

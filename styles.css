@@ -1056,3 +1056,12 @@ select option{
     min-width:0;
   }
 }
+
+
+/* ===== Autenticação e perfis ===== */
+.auth-gate{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:22px;background:linear-gradient(180deg,rgba(1,13,25,.97),rgba(1,25,43,.98));overflow:auto}
+.auth-card{width:min(430px,100%);background:rgba(5,25,43,.98);border:1px solid rgba(45,166,255,.28);border-radius:24px;padding:28px;box-shadow:0 24px 70px rgba(0,0,0,.45);text-align:center}
+.auth-logo{width:86px;height:86px;border-radius:22px;object-fit:cover;margin-bottom:10px}.auth-card h1{margin:4px 0 2px}.auth-subtitle{margin:0 0 22px;color:#9fb3c8}.auth-form{display:grid;gap:14px;text-align:left}.auth-form label{display:grid;gap:7px;font-weight:700}.auth-form input{width:100%;box-sizing:border-box}.auth-main-btn{width:100%;margin-top:4px}.auth-link{border:0;background:transparent;color:#56b9ff;cursor:pointer;padding:8px;font-weight:700}.auth-message{min-height:22px;margin:16px 0 0;color:#b9c7d5;font-size:.92rem}.auth-message.err{color:#ff8d8d}.auth-message.ok{color:#74e59a}.auth-message.warn{color:#ffd27a}.auth-pending>.topbar,.auth-pending>.layout,.auth-pending>#toast{visibility:hidden}.role-hidden{display:none!important}
+.user-session{display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.16);border-radius:14px;padding:7px 9px}.user-session-text{display:flex;flex-direction:column;line-height:1.1;max-width:180px}.user-session-text strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.user-session-text span{font-size:.72rem;font-weight:900;color:#65c9ff;letter-spacing:.06em;margin-top:4px}.logout-btn{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;border-radius:10px;padding:7px 10px;cursor:pointer}
+input:disabled{opacity:.72;cursor:not-allowed}
+@media(max-width:700px){.auth-card{padding:22px 18px}.user-session{order:-1}.user-session-text{max-width:115px}.logout-btn{padding:6px 8px}.header-art-actions{gap:6px}}

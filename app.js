@@ -3,6 +3,11 @@ import {
   getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot,
   getDocs, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+import {
+  getAuth, onAuthStateChanged, createUserWithEmailAndPassword,
+  signInWithEmailAndPassword, signOut, sendPasswordResetEmail,
+  updateProfile, sendEmailVerification, setPersistence, browserLocalPersistence
+} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBDRttCbeYSrFttoGPKmgVRrG251ns0Pck",
@@ -16,6 +21,25 @@ const firebaseConfig = {
 
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
+const auth = getAuth(firebaseApp);
+setPersistence(auth, browserLocalPersistence).catch(console.error);
+
+const DIRECTORIA_EMAILS = new Set([
+  "abimaeltablet@gmail.com",
+  "marcelo.vst@hotmail.com",
+  "marcioviniciustabosa@gmail.com"
+]);
+let currentUser = null;
+let currentRole = "JOGADOR";
+let realtimeStarted = false;
+function normalizedEmail(user=currentUser){ return String(user?.email || "").trim().toLowerCase(); }
+function isDirectorEmail(user=currentUser){ return DIRECTORIA_EMAILS.has(normalizedEmail(user)); }
+function isDirector(){ return !!currentUser && isDirectorEmail(currentUser) && currentUser.emailVerified; }
+function requireDirector(){
+  if(isDirector()) return true;
+  toast("Apenas a DIRETORIA pode alterar informações.");
+  return false;
+}
 
 const PUSH_WORKER_URL = "https://pandas-fc-push.abimaeltablet.workers.dev/";
 
@@ -130,6 +154,8 @@ function markWriting(){
 }
 
 function connectRealtime(){
+  if(realtimeStarted) return;
+  realtimeStarted = true;
   onSnapshot(collection(db,"players"), snap=>{
     state.players = snap.docs.map(d=>({id:d.id,...d.data()}));
     state.players.sort((a,b)=>(Number(a.number)||0)-(Number(b.number)||0) || String(a.name||"").localeCompare(String(b.name||"")));
@@ -193,6 +219,7 @@ document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click',
 const playerForm = document.getElementById('playerForm');
 playerForm.addEventListener('submit', async e=>{
   e.preventDefault();
+  if(!requireDirector()) return;
   const id=document.getElementById('playerId').value || uid();
   const old=state.players.find(p=>p.id===id);
   const obj={
@@ -219,6 +246,7 @@ function editPlayer(id){
   document.querySelector('[data-page="cadastro"]').click();
 }
 async function deletePlayer(id){
+  if(!requireDirector()) return;
   if(!confirm('Excluir este jogador em todos os dispositivos?'))return;
   try{
     markWriting();
@@ -233,17 +261,18 @@ function renderPlayers(){
   document.getElementById('playersList').innerHTML=arr.length?arr.map(p=>`
     <div class="list-row">
       <div><strong>#${p.number} ${esc(p.name)}</strong><div class="muted">${esc(p.position)}</div></div>
-      <div class="actions"><button onclick="editPlayer('${p.id}')">✏️ Editar</button><button onclick="deletePlayer('${p.id}')">🗑️ Excluir</button></div>
+      ${isDirector()?`<div class="actions"><button onclick="editPlayer('${p.id}')">✏️ Editar</button><button onclick="deletePlayer('${p.id}')">🗑️ Excluir</button></div>`:''}
     </div>`).join(''):'<p class="muted">Nenhum jogador cadastrado.</p>';
 }
 
 function renderLineup(){
   document.getElementById('lineupPlayers').innerHTML=state.players.length?state.players.map(p=>`
-    <label class="check-item"><input type="checkbox" ${state.selectedLineup.includes(p.id)?'checked':''} onchange="toggleLineup('${p.id}',this.checked)">
+    <label class="check-item"><input type="checkbox" ${state.selectedLineup.includes(p.id)?'checked':''} ${isDirector()?'':'disabled'} onchange="toggleLineup('${p.id}',this.checked)">
     <span><strong>#${p.number} ${esc(p.name)}</strong><br><span class="muted">${esc(p.position)}</span></span></label>`).join(''):'<p class="muted">Cadastre jogadores primeiro.</p>';
   renderField();
 }
 async function toggleLineup(id,on){
+  if(!requireDirector()){ renderLineup(); return; }
   let ids=[...state.selectedLineup];
   if(on&&!ids.includes(id))ids.push(id);
   if(!on)ids=ids.filter(x=>x!==id);
@@ -366,6 +395,7 @@ if(matchAlert){
 
 eventForm.addEventListener('submit',async e=>{
   e.preventDefault();
+  if(!requireDirector()) return;
 
   const id=document.getElementById('eventId').value || uid();
   const old=state.events.find(x=>x.id===id);
@@ -474,6 +504,7 @@ function editEvent(id){
 }
 
 async function deleteEvent(id){
+  if(!requireDirector()) return;
   const e=state.events.find(x=>x.id===id);
   if(!e)return;
   if(!confirm('Excluir este confronto e cancelar a notificação agendada?'))return;
@@ -504,16 +535,17 @@ function renderEvents(){
   const sorted=[...state.events].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
   document.getElementById('eventsList').innerHTML=sorted.length?sorted.map(e=>`
    <div class="list-row"><div class="match-main">${e.logo?`<img class="opponent-logo" src="${e.logo}">`:''}<div><strong>PANDAS FC × ${esc(e.opponent)}</strong><div class="muted">${formatDate(e.date)} • ${e.time} • ${esc(e.location)}</div></div></div>
-   <div class="actions"><button onclick="editEvent('${e.id}')">✏️</button><button onclick="generatePoster('${e.id}')">🖼️ Arte</button><button onclick="deleteEvent('${e.id}')">🗑️</button></div></div>`).join(''):'<p class="muted">Nenhuma partida agendada.</p>';
+   <div class="actions">${isDirector()?`<button onclick="editEvent('${e.id}')">✏️</button>`:''}<button onclick="generatePoster('${e.id}')">🖼️ Arte</button>${isDirector()?`<button onclick="deleteEvent('${e.id}')">🗑️</button>`:''}</div></div>`).join(''):'<p class="muted">Nenhuma partida agendada.</p>';
 }
 function renderMatches(){
  document.getElementById('matchesList').innerHTML=state.events.length?state.events.map(e=>{
    const st=statusOf(e),cls=st==='VITÓRIA'?'win':st==='DERROTA'?'loss':st==='EMPATE'?'draw':'';
    return `<div class="card list-row"><div><strong>PANDAS FC × ${esc(e.opponent)}</strong><div class="muted">${formatDate(e.date)} • ${e.time} • ${esc(e.location)}</div>${st?`<div class="status ${cls}">${st}</div>`:''}</div>
-   <div class="score-inputs"><input type="number" min="0" value="${e.goalsFor}" placeholder="0" onchange="setScore('${e.id}','goalsFor',this.value)"><strong>×</strong><input type="number" min="0" value="${e.goalsAgainst}" placeholder="0" onchange="setScore('${e.id}','goalsAgainst',this.value)"></div></div>`;
+   <div class="score-inputs"><input type="number" min="0" value="${e.goalsFor}" placeholder="0" ${isDirector()?'':'disabled'} onchange="setScore('${e.id}','goalsFor',this.value)"><strong>×</strong><input type="number" min="0" value="${e.goalsAgainst}" placeholder="0" ${isDirector()?'':'disabled'} onchange="setScore('${e.id}','goalsAgainst',this.value)"></div></div>`;
  }).join(''):'<div class="card"><p class="muted">Cadastre confrontos na Agenda.</p></div>';
 }
 async function setScore(id,key,v){
+  if(!requireDirector()){ renderMatches(); return; }
   try{
     markWriting();
     await setDoc(doc(db,"events",id),{[key]:v===''?'':Number(v),updatedAt:serverTimestamp()},{merge:true});
@@ -633,9 +665,9 @@ function renderStats(){
 }
 function renderScorers(){
  const arr=[...state.players].sort((a,b)=>(b.goals||0)-(a.goals||0)||String(a.name||'').localeCompare(String(b.name||'')));
- document.getElementById('scorersList').innerHTML=arr.length?arr.map((p,i)=>`<div class="list-row"><div style="display:flex;align-items:center;gap:12px"><div class="rank-badge">${i+1}</div><div><strong>#${p.number} ${esc(p.name)}</strong><div class="muted">${esc(p.position)}</div></div></div><label>Gols <input class="goal-input" type="number" min="0" value="${p.goals||0}" onchange="setGoals('${p.id}',this.value)"></label></div>`).join(''):'<p class="muted">Nenhum jogador cadastrado.</p>';
+ document.getElementById('scorersList').innerHTML=arr.length?arr.map((p,i)=>`<div class="list-row"><div style="display:flex;align-items:center;gap:12px"><div class="rank-badge">${i+1}</div><div><strong>#${p.number} ${esc(p.name)}</strong><div class="muted">${esc(p.position)}</div></div></div><label>Gols <input class="goal-input" type="number" min="0" value="${p.goals||0}" ${isDirector()?'':'disabled'} onchange="setGoals('${p.id}',this.value)"></label></div>`).join(''):'<p class="muted">Nenhum jogador cadastrado.</p>';
 }
-async function setGoals(id,v){try{markWriting();await setDoc(doc(db,"players",id),{goals:Math.max(0,Number(v)||0),updatedAt:serverTimestamp()},{merge:true});}catch(err){syncError(err);}}
+async function setGoals(id,v){if(!requireDirector()){renderScorers();return;}try{markWriting();await setDoc(doc(db,"players",id),{goals:Math.max(0,Number(v)||0),updatedAt:serverTimestamp()},{merge:true});}catch(err){syncError(err);}}
 
 let calDate=new Date();document.getElementById('prevMonth').onclick=()=>{calDate.setMonth(calDate.getMonth()-1);renderCalendar();};document.getElementById('nextMonth').onclick=()=>{calDate.setMonth(calDate.getMonth()+1);renderCalendar();};
 function renderCalendar(){
@@ -646,6 +678,7 @@ function renderCalendar(){
 }
 
 document.getElementById('teamLogoInput').addEventListener('change',async e=>{
+  if(!requireDirector()){ e.target.value=''; return; }
   const f=e.target.files[0];if(!f)return;
   try{
     const logo=await fileToCompressedDataURL(f,600,.75);
@@ -792,6 +825,7 @@ function renderDashboardMedia(){
 }
 
 document.getElementById('dashboardMediaInput').addEventListener('change', async e=>{
+  if(!requireDirector()){ e.target.value=''; return; }
   const file=e.target.files?.[0];
   if(!file) return;
 
@@ -824,6 +858,7 @@ document.getElementById('dashboardMediaInput').addEventListener('change', async 
 });
 
 document.getElementById('saveDashboardMediaUrl').onclick=async()=>{
+  if(!requireDirector()) return;
   const url=document.getElementById('dashboardMediaUrl').value.trim();
   const mode=document.getElementById('dashboardMediaUrlType').value || 'auto';
 
@@ -867,6 +902,7 @@ document.getElementById('saveDashboardMediaUrl').onclick=async()=>{
 };
 
 document.getElementById('removeDashboardMedia').onclick=async()=>{
+  if(!requireDirector()) return;
   if(!confirm('Remover a mídia do Início / Dashboard em todos os dispositivos?')) return;
   try{
     markWriting();
@@ -884,6 +920,7 @@ document.getElementById('removeDashboardMedia').onclick=async()=>{
 };
 
 document.getElementById('clearDataBtn').onclick=async()=>{
+  if(!requireDirector()) return;
   if(!confirm('Apagar jogadores, partidas, escalação e logo do Firebase? Isso afetará todos os dispositivos.'))return;
   try{
     markWriting();
@@ -899,6 +936,7 @@ document.getElementById('clearDataBtn').onclick=async()=>{
 };
 
 document.getElementById('migrateBtn').onclick=async()=>{
+  if(!requireDirector()) return;
   const raw=localStorage.getItem('pandasfc_data_v4');
   if(!raw){alert('Não encontrei dados antigos salvos neste navegador.');return;}
   if(!confirm('Importar os dados antigos deste dispositivo para o Firebase?'))return;
@@ -1647,6 +1685,119 @@ if('serviceWorker'in navigator){
   });
 }
 
+
+function setAuthMessage(message,type=""){
+  const el=document.getElementById("authMessage");
+  if(!el) return;
+  el.textContent=message || "";
+  el.className=`auth-message ${type}`.trim();
+}
+function friendlyAuthError(err){
+  const code=String(err?.code||"");
+  const map={
+    "auth/invalid-credential":"E-mail ou senha incorretos.",
+    "auth/user-not-found":"Usuário não encontrado.",
+    "auth/wrong-password":"Senha incorreta.",
+    "auth/email-already-in-use":"Este e-mail já possui uma conta. Use Entrar ou Esqueci minha senha.",
+    "auth/weak-password":"A senha deve ter pelo menos 6 caracteres.",
+    "auth/invalid-email":"Informe um e-mail válido.",
+    "auth/too-many-requests":"Muitas tentativas. Aguarde um pouco e tente novamente.",
+    "auth/network-request-failed":"Falha de conexão. Verifique sua internet."
+  };
+  return map[code] || err?.message || "Não foi possível concluir a operação.";
+}
+function showRegister(show){
+  document.getElementById("loginForm")?.classList.toggle("hidden",show);
+  document.getElementById("registerForm")?.classList.toggle("hidden",!show);
+  setAuthMessage("");
+}
+document.getElementById("showRegisterBtn")?.addEventListener("click",()=>showRegister(true));
+document.getElementById("backToLoginBtn")?.addEventListener("click",()=>showRegister(false));
+
+document.getElementById("loginForm")?.addEventListener("submit",async e=>{
+  e.preventDefault(); setAuthMessage("Entrando...");
+  try{
+    const email=document.getElementById("loginEmail").value.trim();
+    const password=document.getElementById("loginPassword").value;
+    const cred=await signInWithEmailAndPassword(auth,email,password);
+    await cred.user.reload();
+    if(isDirectorEmail(cred.user) && !cred.user.emailVerified){
+      await sendEmailVerification(cred.user).catch(()=>{});
+      await signOut(auth);
+      setAuthMessage("Conta da DIRETORIA ainda não verificada. Enviamos um link para esse e-mail. Confirme o endereço e entre novamente.","warn");
+    }
+  }catch(err){ setAuthMessage(friendlyAuthError(err),"err"); }
+});
+
+document.getElementById("registerForm")?.addEventListener("submit",async e=>{
+  e.preventDefault();
+  const name=document.getElementById("registerName").value.trim();
+  const email=document.getElementById("registerEmail").value.trim();
+  const p1=document.getElementById("registerPassword").value;
+  const p2=document.getElementById("registerPassword2").value;
+  if(p1!==p2){ setAuthMessage("As senhas não são iguais.","err"); return; }
+  setAuthMessage("Criando conta...");
+  try{
+    const cred=await createUserWithEmailAndPassword(auth,email,p1);
+    await updateProfile(cred.user,{displayName:name});
+    if(isDirectorEmail(cred.user)){
+      await sendEmailVerification(cred.user);
+      await signOut(auth);
+      showRegister(false);
+      document.getElementById("loginEmail").value=email;
+      setAuthMessage("Conta da DIRETORIA criada. Enviamos um link de verificação para o e-mail. Confirme o endereço antes de entrar.","ok");
+    }else{
+      setAuthMessage("Conta criada com sucesso.","ok");
+    }
+  }catch(err){ setAuthMessage(friendlyAuthError(err),"err"); }
+});
+
+document.getElementById("forgotPasswordBtn")?.addEventListener("click",async()=>{
+  const email=document.getElementById("loginEmail").value.trim() || prompt("Digite o e-mail da sua conta:");
+  if(!email) return;
+  try{
+    await sendPasswordResetEmail(auth,email);
+    setAuthMessage("Enviamos as instruções para redefinir sua senha.","ok");
+  }catch(err){ setAuthMessage(friendlyAuthError(err),"err"); }
+});
+document.getElementById("logoutBtn")?.addEventListener("click",()=>signOut(auth));
+
+function applyRoleUI(){
+  const director=isDirector();
+  currentRole=director?"DIRETORIA":"JOGADOR";
+  document.querySelectorAll(".admin-only").forEach(el=>el.classList.toggle("role-hidden",!director));
+  document.getElementById("sessionUserName").textContent=currentUser?.displayName || currentUser?.email?.split("@")[0] || "Usuário";
+  document.getElementById("sessionRole").textContent=currentRole;
+  document.getElementById("userSession").classList.remove("hidden");
+  if(!director && document.getElementById("cadastro")?.classList.contains("active")){
+    document.querySelector('[data-page="dashboard"]')?.click();
+  }
+  renderPlayers(); renderLineup(); renderEvents(); renderMatches(); renderScorers();
+}
+
+onAuthStateChanged(auth,async user=>{
+  if(user){
+    currentUser=user;
+    if(isDirectorEmail(user) && !user.emailVerified){
+      document.body.classList.add("auth-pending");
+      document.getElementById("authGate").classList.remove("hidden");
+      document.getElementById("userSession").classList.add("hidden");
+      setAuthMessage("Para acessar como DIRETORIA, confirme primeiro o link enviado ao seu e-mail.","warn");
+      return;
+    }
+    document.body.classList.remove("auth-pending");
+    document.getElementById("authGate").classList.add("hidden");
+    applyRoleUI();
+    connectRealtime();
+  }else{
+    currentUser=null; currentRole="JOGADOR";
+    document.body.classList.add("auth-pending");
+    document.getElementById("authGate").classList.remove("hidden");
+    document.getElementById("userSession").classList.add("hidden");
+    setSyncStatus("🔒 Faça login");
+  }
+});
+
 window.editPlayer=editPlayer;
 window.deletePlayer=deletePlayer;
 window.toggleLineup=toggleLineup;
@@ -1657,4 +1808,3 @@ window.setScore=setScore;
 window.setGoals=setGoals;
 
 renderPlayers(); renderLineup(); renderEvents(); renderMatches(); renderStats(); renderScorers(); renderCalendar(); renderLogo(); renderDashboardMedia();
-connectRealtime();

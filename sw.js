@@ -1,4 +1,4 @@
-const CACHE = "pandas-fc-v25-pwa-only";
+const CACHE = "pandas-fc-v26-auth";
 
 const CORE = [
   "./",
