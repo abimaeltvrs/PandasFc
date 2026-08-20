@@ -1,0 +1,28 @@
+PANDAS FC — ESCALAÇÃO ARRASTÁVEL
+
+Alterações desta versão:
+
+DIRETORIA
+- Continua vendo a lista de jogadores disponíveis.
+- Pode selecionar/desmarcar jogadores.
+- Pode arrastar cada jogador livremente pelo quadro tático com mouse ou toque.
+- A posição é salva no Firebase em lineup/current.positions.
+- As posições também são usadas ao gerar a imagem da escalação.
+
+JOGADOR
+- Não vê a lista "Jogadores disponíveis".
+- Não vê o botão "Gerar imagem".
+- Vê somente o quadro tático com a escalação definida pela DIRETORIA.
+- Não consegue movimentar jogadores.
+
+SINCRONIZAÇÃO
+- A posição definida pela DIRETORIA aparece automaticamente para todos.
+- Ao remover um jogador da escalação, a posição personalizada dele é removida.
+- Um jogador recém-escalado recebe primeiro a posição automática da função dele.
+- Depois que for arrastado, passa a usar a posição personalizada.
+
+PUBLICAÇÃO
+- Substitua no GitHub todos os arquivos pelos deste ZIP.
+- Mantenha a estrutura de pastas.
+- Cache atualizado para v29.
+- Firebase Authentication, Firestore Rules e OneSignal/Push foram preservados.

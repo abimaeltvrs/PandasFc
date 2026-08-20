@@ -99,6 +99,7 @@ const state = {
   events: [],
   teamLogo: "",
   selectedLineup: [],
+  lineupPositions: {},
   dashboardMedia: {
     type: "",
     data: "",
@@ -197,7 +198,9 @@ function connectRealtime(){
   }, err=>syncError(err));
 
   onSnapshot(doc(db,"lineup","current"), snap=>{
-    state.selectedLineup = snap.exists() ? (snap.data().playerIds || []) : [];
+    const lineupData = snap.exists() ? snap.data() : {};
+    state.selectedLineup = lineupData.playerIds || [];
+    state.lineupPositions = lineupData.positions || {};
     firebaseReady = true;
     setSyncStatus("☁️ Sincronizado","ok");
     renderLineup();
@@ -253,7 +256,13 @@ async function deletePlayer(id){
     markWriting();
     await deleteDoc(doc(db,"players",id));
     const ids=state.selectedLineup.filter(x=>x!==id);
-    await setDoc(doc(db,"lineup","current"),{playerIds:ids,updatedAt:serverTimestamp()},{merge:true});
+    const positions={...(state.lineupPositions||{})};
+    delete positions[id];
+    await setDoc(doc(db,"lineup","current"),{
+      playerIds:ids,
+      positions,
+      updatedAt:serverTimestamp()
+    },{merge:true});
   }catch(err){syncError(err);}
 }
 function renderPlayers(){
@@ -267,19 +276,55 @@ function renderPlayers(){
 }
 
 function renderLineup(){
-  document.getElementById('lineupPlayers').innerHTML=state.players.length?state.players.map(p=>`
-    <label class="check-item"><input type="checkbox" ${state.selectedLineup.includes(p.id)?'checked':''} ${isDirector()?'':'disabled'} onchange="toggleLineup('${p.id}',this.checked)">
-    <span><strong>#${p.number} ${esc(p.name)}</strong><br><span class="muted">${esc(p.position)}</span></span></label>`).join(''):'<p class="muted">Cadastre jogadores primeiro.</p>';
+  const selectorCard=document.getElementById('lineupSelectorCard');
+  const lineupLayout=document.querySelector('.lineup-layout');
+  const downloadBtn=document.getElementById('downloadLineup');
+  const pageDescription=document.getElementById('lineupDescription');
+
+  if(selectorCard) selectorCard.classList.toggle('hidden',!isDirector());
+  if(lineupLayout) lineupLayout.classList.toggle('viewer-lineup',!isDirector());
+  if(downloadBtn) downloadBtn.classList.toggle('hidden',!isDirector());
+
+  if(pageDescription){
+    pageDescription.textContent=isDirector()
+      ? 'Selecione os jogadores e arraste-os livremente pelo campo.'
+      : 'Escalação definida pela DIRETORIA.';
+  }
+
+  const list=document.getElementById('lineupPlayers');
+  if(list && isDirector()){
+    list.innerHTML=state.players.length?state.players.map(p=>`
+      <label class="check-item">
+        <input type="checkbox"
+          ${state.selectedLineup.includes(p.id)?'checked':''}
+          onchange="toggleLineup('${p.id}',this.checked)">
+        <span><strong>#${p.number} ${esc(p.name)}</strong><br><span class="muted">${esc(p.position)}</span></span>
+      </label>`).join(''):'<p class="muted">Cadastre jogadores primeiro.</p>';
+  }
+
   renderField();
 }
+
 async function toggleLineup(id,on){
   if(!requireDirector()){ renderLineup(); return; }
+
   let ids=[...state.selectedLineup];
-  if(on&&!ids.includes(id))ids.push(id);
-  if(!on)ids=ids.filter(x=>x!==id);
+  const positions={...(state.lineupPositions||{})};
+
+  if(on&&!ids.includes(id)) ids.push(id);
+
+  if(!on){
+    ids=ids.filter(x=>x!==id);
+    delete positions[id];
+  }
+
   try{
     markWriting();
-    await setDoc(doc(db,"lineup","current"),{playerIds:ids,updatedAt:serverTimestamp()},{merge:true});
+    await setDoc(doc(db,"lineup","current"),{
+      playerIds:ids,
+      positions,
+      updatedAt:serverTimestamp()
+    },{merge:true});
   }catch(err){syncError(err);}
 }
 
@@ -291,18 +336,165 @@ const positionSlots={
  'Meio-campo':[[25,52],[50,54],[75,52],[50,46]],
  'Atacante':[[30,24],[50,19],[70,24],[30,76],[70,76]]
 };
-function getPlayerSlots(players){
-  const used={}; return players.map((p,idx)=>{
+
+function getDefaultPlayerSlots(players){
+  const used={};
+  return players.map((p,idx)=>{
     const slots=positionSlots[p.position]||[[20+((idx*17)%60),50]];
     used[p.position]=(used[p.position]||0);
-    const pos=slots[used[p.position]%slots.length]; used[p.position]++;
+    const pos=slots[used[p.position]%slots.length];
+    used[p.position]++;
     return {p,x:pos[0],y:pos[1]};
   });
 }
+
+function getPlayerSlots(players){
+  const defaults=getDefaultPlayerSlots(players);
+
+  return defaults.map(item=>{
+    const saved=state.lineupPositions?.[item.p.id];
+
+    if(saved &&
+       Number.isFinite(Number(saved.x)) &&
+       Number.isFinite(Number(saved.y))){
+      return {
+        p:item.p,
+        x:Math.max(3,Math.min(97,Number(saved.x))),
+        y:Math.max(3,Math.min(97,Number(saved.y)))
+      };
+    }
+
+    return item;
+  });
+}
+
+let draggingPlayer=null;
+let dragPointerId=null;
+
 function renderField(){
-  const players=state.selectedLineup.map(id=>state.players.find(p=>p.id===id)).filter(Boolean);
+  const players=state.selectedLineup
+    .map(id=>state.players.find(p=>p.id===id))
+    .filter(Boolean);
+
   const slots=getPlayerSlots(players);
-  document.getElementById('fieldPlayers').innerHTML=slots.map(({p,x,y})=>`<div class="field-player" style="left:${x}%;top:${y}%">#${p.number}<br>${esc(p.name)}</div>`).join('');
+  const root=document.getElementById('fieldPlayers');
+  if(!root)return;
+
+  root.innerHTML=slots.map(({p,x,y})=>`
+    <div
+      class="field-player ${isDirector()?'draggable-player':'viewer-player'}"
+      data-player-id="${p.id}"
+      style="left:${x}%;top:${y}%"
+      ${isDirector()?'title="Arraste para posicionar"':''}>
+      #${p.number}<br>${esc(p.name)}
+    </div>
+  `).join('');
+
+  if(isDirector()) enableLineupDragging();
+}
+
+function getPointerPercentOnField(event,field){
+  const rect=field.getBoundingClientRect();
+  const clientX=event.clientX;
+  const clientY=event.clientY;
+
+  let x=((clientX-rect.left)/rect.width)*100;
+  let y=((clientY-rect.top)/rect.height)*100;
+
+  // Mantém o marcador inteiro dentro da arte.
+  x=Math.max(4,Math.min(96,x));
+  y=Math.max(3,Math.min(97,y));
+
+  return {x,y};
+}
+
+function enableLineupDragging(){
+  const field=document.getElementById('soccerField');
+  if(!field)return;
+
+  field.querySelectorAll('.field-player.draggable-player').forEach(el=>{
+    el.addEventListener('pointerdown',event=>{
+      if(!isDirector())return;
+
+      event.preventDefault();
+      draggingPlayer=el;
+      dragPointerId=event.pointerId;
+      el.classList.add('dragging');
+      el.setPointerCapture?.(event.pointerId);
+
+      const pos=getPointerPercentOnField(event,field);
+      el.style.left=`${pos.x}%`;
+      el.style.top=`${pos.y}%`;
+    });
+  });
+}
+
+async function saveDraggedPlayerPosition(playerId,x,y){
+  if(!isDirector())return;
+
+  const positions={
+    ...(state.lineupPositions||{}),
+    [playerId]:{
+      x:Number(x.toFixed(2)),
+      y:Number(y.toFixed(2))
+    }
+  };
+
+  // Atualiza localmente de imediato para não "pular" enquanto o snapshot chega.
+  state.lineupPositions=positions;
+
+  try{
+    markWriting();
+    await setDoc(doc(db,"lineup","current"),{
+      positions,
+      updatedAt:serverTimestamp()
+    },{merge:true});
+    setSyncStatus("☁️ Sincronizado","ok");
+  }catch(err){
+    syncError(err);
+  }
+}
+
+const soccerField=document.getElementById('soccerField');
+
+if(soccerField){
+  soccerField.addEventListener('pointermove',event=>{
+    if(!draggingPlayer || event.pointerId!==dragPointerId || !isDirector())return;
+
+    event.preventDefault();
+    const pos=getPointerPercentOnField(event,soccerField);
+    draggingPlayer.style.left=`${pos.x}%`;
+    draggingPlayer.style.top=`${pos.y}%`;
+  });
+
+  const finishDrag=event=>{
+    if(!draggingPlayer || event.pointerId!==dragPointerId)return;
+
+    event.preventDefault();
+    const el=draggingPlayer;
+    const pos=getPointerPercentOnField(event,soccerField);
+    const playerId=el.dataset.playerId;
+
+    el.style.left=`${pos.x}%`;
+    el.style.top=`${pos.y}%`;
+    el.classList.remove('dragging');
+
+    try{ el.releasePointerCapture?.(event.pointerId); }catch{}
+
+    draggingPlayer=null;
+    dragPointerId=null;
+
+    saveDraggedPlayerPosition(playerId,pos.x,pos.y);
+  };
+
+  soccerField.addEventListener('pointerup',finishDrag);
+  soccerField.addEventListener('pointercancel',event=>{
+    if(!draggingPlayer || event.pointerId!==dragPointerId)return;
+    draggingPlayer.classList.remove('dragging');
+    draggingPlayer=null;
+    dragPointerId=null;
+    renderField();
+  });
 }
 
 document.getElementById('downloadLineup').onclick=()=>downloadLineupImage();

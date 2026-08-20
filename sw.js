@@ -1,4 +1,4 @@
-const CACHE = "pandas-fc-v28-auth-firebase-key";
+const CACHE = "pandas-fc-v29-lineup-drag";
 
 const CORE = [
   "./",

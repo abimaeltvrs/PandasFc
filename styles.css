@@ -1065,3 +1065,65 @@ select option{
 .user-session{display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.16);border-radius:14px;padding:7px 9px}.user-session-text{display:flex;flex-direction:column;line-height:1.1;max-width:180px}.user-session-text strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.user-session-text span{font-size:.72rem;font-weight:900;color:#65c9ff;letter-spacing:.06em;margin-top:4px}.logout-btn{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;border-radius:10px;padding:7px 10px;cursor:pointer}
 input:disabled{opacity:.72;cursor:not-allowed}
 @media(max-width:700px){.auth-card{padding:22px 18px}.user-session{order:-1}.user-session-text{max-width:115px}.logout-btn{padding:6px 8px}.header-art-actions{gap:6px}}
+
+
+/* =========================================================
+   ESCALAÇÃO: DIRETORIA ARRASTA / JOGADOR SOMENTE VISUALIZA
+   ========================================================= */
+
+.lineup-layout.viewer-lineup{
+  grid-template-columns:minmax(0,1fr) !important;
+}
+
+.lineup-layout.viewer-lineup .field-card{
+  width:100%;
+  max-width:900px;
+  margin:0 auto;
+}
+
+.field-player.draggable-player{
+  cursor:grab;
+  touch-action:none;
+  user-select:none;
+  -webkit-user-select:none;
+  transition:
+    box-shadow .15s ease,
+    transform .15s ease;
+}
+
+.field-player.draggable-player:active,
+.field-player.draggable-player.dragging{
+  cursor:grabbing;
+  z-index:50 !important;
+  box-shadow:0 8px 24px rgba(0,0,0,.55);
+  transform:translate(-50%,-50%) scale(1.08);
+}
+
+.field-player.viewer-player{
+  cursor:default;
+  pointer-events:none;
+}
+
+/* Evita que o gesto de arrastar um jogador role a página no celular. */
+#soccerField{
+  touch-action:none;
+}
+
+/* Para jogador comum, o campo ganha mais destaque visual. */
+.lineup-layout.viewer-lineup .soccer-field{
+  width:min(100%,720px) !important;
+}
+
+@media(max-width:900px){
+  .lineup-layout.viewer-lineup{
+    display:block !important;
+  }
+
+  .lineup-layout.viewer-lineup .field-card{
+    padding:10px !important;
+  }
+
+  .field-player{
+    min-width:68px;
+  }
+}
