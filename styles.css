@@ -1361,3 +1361,17 @@ input:disabled{opacity:.72;cursor:not-allowed}
     height:40px;
   }
 }
+
+/* PANDAS ONLINE + CHAT v37 */
+.online-count{border:1px solid rgba(255,255,255,.22);background:rgba(0,0,0,.28);color:#fff;border-radius:999px;padding:7px 10px;font-weight:800;cursor:pointer;white-space:nowrap}
+.chat-online-pill{background:rgba(20,150,80,.18);border:1px solid rgba(50,220,130,.35);padding:8px 12px;border-radius:999px;font-weight:800}
+.online-users-panel{margin-bottom:12px;padding:12px;border-radius:14px;background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.12)}
+.online-users-list{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}.online-user-chip{padding:6px 9px;border-radius:999px;background:rgba(255,255,255,.1);font-size:.86rem}
+.chat-messages{height:min(54vh,520px);overflow-y:auto;padding:12px;border-radius:16px;background:rgba(0,0,0,.20);border:1px solid rgba(255,255,255,.10);display:flex;flex-direction:column;gap:10px}
+.chat-message{max-width:86%;padding:9px 11px;border-radius:14px;background:rgba(255,255,255,.09);align-self:flex-start}.chat-message.mine{align-self:flex-end;background:rgba(40,140,210,.25)}
+.chat-message-head{display:flex;gap:7px;align-items:center;flex-wrap:wrap;font-size:.78rem;opacity:.88;margin-bottom:4px}.chat-role{font-weight:900;font-size:.68rem;padding:2px 5px;border-radius:999px;background:rgba(255,255,255,.12)}
+.chat-message-text{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.35}.chat-message-actions{display:flex;gap:6px;margin-top:6px}.chat-message-actions button{border:0;border-radius:7px;padding:4px 7px;cursor:pointer}
+.chat-compose{position:sticky;bottom:0;margin-top:10px;padding:10px;border-radius:14px;background:rgba(5,22,35,.97);border:1px solid rgba(255,255,255,.12)}
+.chat-input-row{display:flex;gap:8px}.chat-input-row input{flex:1;min-width:0}.chat-emoji-row{display:flex;gap:5px;overflow-x:auto;margin-bottom:7px}.emoji-btn{border:0;border-radius:8px;padding:7px 9px;background:rgba(255,255,255,.1);font-size:1.05rem;cursor:pointer}
+.chat-pinned{margin-bottom:10px;padding:10px 12px;border-radius:12px;background:rgba(235,184,55,.16);border:1px solid rgba(235,184,55,.4)}
+@media(max-width:640px){.online-count{font-size:.76rem;padding:6px 8px}.chat-messages{height:48vh}.chat-message{max-width:92%}}

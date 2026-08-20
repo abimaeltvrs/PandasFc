@@ -1,0 +1,25 @@
+PANDAS FC v37 — ONLINE + BATE-PAPO
+
+• Cabeçalho: 🟢 X online.
+• Heartbeat a cada 60 s; offline após ~125 s sem sinal.
+• DIRETORIA toca no contador e abre o chat/lista nominal.
+• JOGADOR vê a quantidade.
+
+💬 Bate-papo:
+• texto + emojis rápidos;
+• nome, perfil e horário;
+• até 300 caracteres;
+• últimas 100 mensagens em tempo real;
+• usuário apaga a própria mensagem;
+• DIRETORIA apaga qualquer mensagem;
+• DIRETORIA fixa/remove recado no topo.
+
+Firestore novo:
+presence/{uid}
+chatMessages/{id}
+settings/chat
+
+ATENÇÃO: as regras do Firestore precisam permitir essas novas coleções para usuários autenticados.
+Se suas regras atuais listam apenas coleções antigas, será necessário acrescentar regras para presence/chatMessages/settings/chat.
+
+Mantém todas as funções da v36.

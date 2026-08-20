@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 import {
   getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot,
-  getDocs, getDoc, serverTimestamp
+  getDocs, getDoc, serverTimestamp, query, orderBy, limit
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 import {
   getAuth, onAuthStateChanged, createUserWithEmailAndPassword,
@@ -33,6 +33,17 @@ const DIRECTORIA_EMAILS = new Set([
 let currentUser = null;
 let currentRole = "JOGADOR";
 let realtimeStarted = false;
+
+let presenceTimer=null, presenceUnsubscribe=null, chatUnsubscribe=null, pinnedUnsubscribe=null;
+let onlineUsers=[], chatMessages=[], pinnedChatMessage=null, lastChatSignature="";
+const PRESENCE_HEARTBEAT_MS=60000, PRESENCE_ONLINE_WINDOW_MS=125000;
+
+function safeText(value=""){
+  return String(value).replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+}
+function displayUserName(){return currentUser?.displayName||currentUser?.email?.split("@")[0]||"Usuário";}
+function roleLabel(){return isDirector()?"DIRETORIA":"JOGADOR";}
+
 function normalizedEmail(user=currentUser){ return String(user?.email || "").trim().toLowerCase(); }
 function isDirectorEmail(user=currentUser){ return DIRECTORIA_EMAILS.has(normalizedEmail(user)); }
 function isDirector(){ return !!currentUser && isDirectorEmail(currentUser) && currentUser.emailVerified; }
@@ -158,6 +169,71 @@ function fileToDataURL(file){
     reader.readAsDataURL(file);
   });
 }
+
+
+async function presenceBeat(){
+  if(!currentUser)return;
+  try{await setDoc(doc(db,"presence",currentUser.uid),{uid:currentUser.uid,name:displayUserName(),role:roleLabel(),lastSeen:serverTimestamp()},{merge:true});}
+  catch(err){console.warn("presence:",err);}
+}
+function activeOnlineUsers(){
+  const now=Date.now();
+  return onlineUsers.filter(u=>{const t=u.lastSeen?.toMillis?.()||0;return t&&now-t<=PRESENCE_ONLINE_WINDOW_MS;});
+}
+function renderPresence(){
+  const active=activeOnlineUsers(), n=active.length;
+  document.getElementById("onlineCount")?.replaceChildren(document.createTextNode(String(n)));
+  document.getElementById("chatOnlineCount")?.replaceChildren(document.createTextNode(String(n)));
+  const list=document.getElementById("onlineUsersList");
+  if(list)list.innerHTML=active.length?active.map(u=>`<span class="online-user-chip">🟢 ${safeText(u.name||"Usuário")}${u.role==="DIRETORIA"?" • DIRETORIA":""}</span>`).join(""):'<span class="muted">Ninguém online agora.</span>';
+}
+function stopPresence(){
+  if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}
+  if(presenceUnsubscribe){presenceUnsubscribe();presenceUnsubscribe=null;}
+  onlineUsers=[];renderPresence();
+}
+function startPresence(){
+  stopPresence(); if(!currentUser)return;
+  presenceBeat();
+  presenceTimer=setInterval(()=>{presenceBeat();renderPresence();},PRESENCE_HEARTBEAT_MS);
+  presenceUnsubscribe=onSnapshot(collection(db,"presence"),snap=>{onlineUsers=snap.docs.map(d=>({id:d.id,...d.data()}));renderPresence();},err=>console.warn("presence realtime:",err));
+}
+function chatTime(ts){try{return ts?.toDate?.().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})||"agora";}catch{return"agora";}}
+function renderChat(){
+  const box=document.getElementById("chatMessages"); if(!box)return;
+  const msgs=[...chatMessages].sort((a,b)=>(a.createdAt?.toMillis?.()||0)-(b.createdAt?.toMillis?.()||0));
+  box.innerHTML=msgs.length?msgs.map(m=>{
+    const mine=m.uid===currentUser?.uid, canDelete=isDirector()||mine;
+    return `<article class="chat-message ${mine?"mine":""}"><div class="chat-message-head"><strong>${safeText(m.name||"Usuário")}</strong><span class="chat-role">${safeText(m.role||"JOGADOR")}</span><span>${chatTime(m.createdAt)}</span></div><div class="chat-message-text">${safeText(m.text||"")}</div>${(canDelete||isDirector())?`<div class="chat-message-actions">${isDirector()?`<button type="button" data-chat-pin="${m.id}">📌 Fixar</button>`:""}${canDelete?`<button type="button" data-chat-delete="${m.id}">🗑️ Apagar</button>`:""}</div>`:""}</article>`;
+  }).join(""):'<div class="muted">Nenhuma mensagem ainda. Seja o primeiro a escrever. 🐼</div>';
+  const sig=msgs.map(m=>m.id).join("|");if(sig!==lastChatSignature){lastChatSignature=sig;box.scrollTop=box.scrollHeight;}
+  const pin=document.getElementById("chatPinned");
+  if(pin){if(pinnedChatMessage?.text){pin.classList.remove("hidden");pin.innerHTML=`📌 <strong>Recado fixado:</strong> ${safeText(pinnedChatMessage.text)} ${isDirector()?'<button id="unpinChatBtn" type="button">Remover</button>':""}`;}else{pin.classList.add("hidden");pin.innerHTML="";}}
+}
+function stopChat(){
+  if(chatUnsubscribe){chatUnsubscribe();chatUnsubscribe=null;}if(pinnedUnsubscribe){pinnedUnsubscribe();pinnedUnsubscribe=null;}
+}
+function startChat(){
+  stopChat(); if(!currentUser)return;
+  const q=query(collection(db,"chatMessages"),orderBy("createdAt","desc"),limit(100));
+  chatUnsubscribe=onSnapshot(q,s=>{chatMessages=s.docs.map(d=>({id:d.id,...d.data()}));renderChat();},e=>{console.warn("chat:",e);document.getElementById("chatMessages").innerHTML='<div class="muted">Não foi possível carregar o bate-papo.</div>';});
+  pinnedUnsubscribe=onSnapshot(doc(db,"settings","chat"),s=>{pinnedChatMessage=s.exists()?(s.data().pinned||null):null;renderChat();},e=>console.warn("pin:",e));
+}
+async function sendChat(text){
+  const clean=String(text||"").trim().slice(0,300);if(!clean||!currentUser)return;
+  try{await setDoc(doc(collection(db,"chatMessages")),{uid:currentUser.uid,name:displayUserName(),role:roleLabel(),text:clean,createdAt:serverTimestamp()});}
+  catch(e){toast("Não foi possível enviar a mensagem.");}
+}
+async function removeChat(id){
+  const m=chatMessages.find(x=>x.id===id);if(!m||(!isDirector()&&m.uid!==currentUser?.uid))return;
+  try{await deleteDoc(doc(db,"chatMessages",id));}catch{toast("Não foi possível apagar.");}
+}
+async function pinChat(id){
+  if(!requireDirector())return;const m=chatMessages.find(x=>x.id===id);if(!m)return;
+  try{await setDoc(doc(db,"settings","chat"),{pinned:{id:m.id,uid:m.uid,name:m.name,role:m.role,text:m.text},updatedAt:serverTimestamp()},{merge:true});toast("Recado fixado.");}catch{toast("Não foi possível fixar.");}
+}
+async function unpinChat(){if(!requireDirector())return;try{await setDoc(doc(db,"settings","chat"),{pinned:null,updatedAt:serverTimestamp()},{merge:true});}catch{}}
+
 
 function markWriting(){
   setSyncStatus("☁️ Sincronizando...");
@@ -2987,7 +3063,10 @@ onAuthStateChanged(auth,async user=>{
     document.getElementById("authGate").classList.add("hidden");
     applyRoleUI();
     connectRealtime();
+    startPresence();
+    startChat();
   }else{
+    stopPresence(); stopChat();
     currentUser=null; currentRole="JOGADOR";
     document.body.classList.add("auth-pending");
     document.getElementById("authGate").classList.remove("hidden");
@@ -2995,6 +3074,19 @@ onAuthStateChanged(auth,async user=>{
     setSyncStatus("🔒 Faça login");
   }
 });
+
+
+document.getElementById("onlineCountBtn")?.addEventListener("click",()=>{
+  if(!isDirector()){toast(`${activeOnlineUsers().length} usuário(s) online.`);return;}
+  document.querySelector('[data-page="chat"]')?.click();
+  document.getElementById("onlineUsersPanel")?.classList.toggle("hidden");
+});
+document.getElementById("chatForm")?.addEventListener("submit",async e=>{e.preventDefault();const input=document.getElementById("chatInput");const text=input?.value||"";if(!text.trim())return;if(input)input.value="";await sendChat(text);});
+document.querySelectorAll(".emoji-btn").forEach(b=>b.addEventListener("click",()=>{const i=document.getElementById("chatInput");if(i){i.value+=b.textContent;i.focus();}}));
+document.getElementById("chatMessages")?.addEventListener("click",e=>{const d=e.target.closest("[data-chat-delete]"),p=e.target.closest("[data-chat-pin]");if(d)removeChat(d.dataset.chatDelete);if(p)pinChat(p.dataset.chatPin);});
+document.getElementById("chatPinned")?.addEventListener("click",e=>{if(e.target.closest("#unpinChatBtn"))unpinChat();});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")presenceBeat();});
+window.addEventListener("focus",presenceBeat);
 
 window.editPlayer=editPlayer;
 window.deletePlayer=deletePlayer;
