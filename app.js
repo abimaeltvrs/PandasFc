@@ -19,6 +19,7 @@ const firebaseConfig = {
   measurementId: "G-GF5664G8HQ"
 };
 
+const APP_BUILD = "auth-firebase-2026-08-19-v2";
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
 const auth = getAuth(firebaseApp);

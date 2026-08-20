@@ -1,0 +1,13 @@
+PANDAS FC - Firebase Authentication corrigido
+
+1. Substitua TODOS os arquivos do GitHub pelos deste pacote, mantendo as pastas.
+2. Aguarde o GitHub Pages publicar.
+3. No celular, feche o PANDAS FC e o Chrome completamente.
+4. Abra https://abimaeltvrs.github.io/PandasFc/ pelo Chrome.
+5. Tente CRIAR CONTA novamente.
+
+Esta versão:
+- usa exatamente o firebaseConfig oficial do projeto panda-fc-449f7;
+- força atualização de app.js/styles.css com ?v=27;
+- muda o cache do PWA para pandas-fc-v27-auth-firebase;
+- mantém OneSignal/Push e workers separados.
