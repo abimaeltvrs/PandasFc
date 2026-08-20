@@ -1,4 +1,4 @@
-const CACHE = "pandas-fc-v32-js-diagnostic";
+const CACHE = "pandas-fc-v33-import-diagnostic";
 
 const CORE = [
   "./",

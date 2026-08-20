@@ -1,0 +1,17 @@
+PANDAS FC v33 - IMPORT DIAGNOSTIC
+
+Esta versão carrega app.js através de import() controlado.
+
+Ela mostra na própria tela:
+- resultado do fetch de app.js;
+- status HTTP e Content-Type;
+- tamanho e início do arquivo;
+- se o código contém connectRealtime/Firebase/PANDAS MUSIC;
+- erro de parsing/importação/execução do módulo;
+- erros globais e Promises rejeitadas;
+- watchdog após 20 segundos com o texto atual de syncStatus.
+
+Se aparecer a caixa vermelha:
+1. aguarde 20 segundos;
+2. toque em "Copiar";
+3. envie todo o conteúdo no ChatGPT.
