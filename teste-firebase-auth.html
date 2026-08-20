@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Teste Firebase Auth - PANDAS FC</title>
+  <style>
+    body{font-family:Arial,sans-serif;background:#061829;color:#fff;margin:0;padding:24px}
+    .card{max-width:520px;margin:30px auto;background:#0b2740;border:1px solid #1f6fa5;border-radius:16px;padding:22px}
+    h1{font-size:24px;margin-top:0}
+    label{display:block;margin-top:14px;font-weight:700}
+    input{width:100%;box-sizing:border-box;padding:12px;margin-top:6px;border-radius:9px;border:1px solid #4f86a8;font-size:16px}
+    button{width:100%;padding:13px;margin-top:14px;border:0;border-radius:9px;font-size:16px;font-weight:700;cursor:pointer}
+    .primary{background:#1189cf;color:#fff}
+    .secondary{background:#e9eef3;color:#102030}
+    pre{white-space:pre-wrap;word-break:break-word;background:#04111d;padding:12px;border-radius:10px;min-height:120px}
+    .ok{color:#78e59a}
+    .err{color:#ff8e86}
+    small{color:#b7c9d8}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🐼 Teste isolado Firebase Authentication</h1>
+    <small>Este arquivo não usa OneSignal, Firestore ou Service Worker.</small>
+
+    <label>E-mail</label>
+    <input id="email" type="email" value="abimaeltablet@gmail.com">
+
+    <label>Senha</label>
+    <input id="password" type="password" placeholder="Digite uma senha">
+
+    <button class="primary" id="createBtn">Criar conta de teste</button>
+    <button class="secondary" id="loginBtn">Testar login</button>
+
+    <h3>Resultado</h3>
+    <pre id="result">Aguardando teste...</pre>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+    import {
+      getAuth,
+      createUserWithEmailAndPassword,
+      signInWithEmailAndPassword
+    } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBDRttCbeYSrFttoGPKmgVRrG251ns0Pck",
+      authDomain: "panda-fc-449f7.firebaseapp.com",
+      projectId: "panda-fc-449f7",
+      storageBucket: "panda-fc-449f7.firebasestorage.app",
+      messagingSenderId: "854268170585",
+      appId: "1:854268170585:web:1f1cadb971677f59a97c48",
+      measurementId: "G-GF5664G8HQ"
+    };
+
+    const result = document.getElementById("result");
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    function show(title, data, ok=false){
+      result.className = ok ? "ok" : "err";
+      result.textContent = title + "\n\n" + (
+        typeof data === "string" ? data : JSON.stringify(data, null, 2)
+      );
+    }
+
+    document.getElementById("createBtn").addEventListener("click", async () => {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      result.className = "";
+      result.textContent = "Testando criação de conta...";
+
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        show("✅ FIREBASE AUTH FUNCIONOU", {
+          uid: cred.user.uid,
+          email: cred.user.email
+        }, true);
+      } catch (err) {
+        show("❌ ERRO DO FIREBASE AUTH", {
+          code: err.code || null,
+          message: err.message || String(err),
+          name: err.name || null
+        });
+      }
+    });
+
+    document.getElementById("loginBtn").addEventListener("click", async () => {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      result.className = "";
+      result.textContent = "Testando login...";
+
+      try {
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+        show("✅ LOGIN FUNCIONOU", {
+          uid: cred.user.uid,
+          email: cred.user.email
+        }, true);
+      } catch (err) {
+        show("❌ ERRO DO LOGIN", {
+          code: err.code || null,
+          message: err.message || String(err),
+          name: err.name || null
+        });
+      }
+    });
+  </script>
+</body>
+</html>
