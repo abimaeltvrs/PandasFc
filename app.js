@@ -1046,6 +1046,108 @@ function renderLogo(){
 }
 
 
+
+let dashboardYoutubePlayer=null;
+let dashboardYoutubeAudioTimer=null;
+let dashboardMusicWasPlaying=false;
+let dashboardPausedPandasMusic=false;
+
+function pausePandasMusicForDashboard(){
+  if(customAnnouncementAudio){
+    // Avisos internos têm prioridade; não são interrompidos pelo Dashboard.
+    return;
+  }
+
+  if(isYoutubePlaying()){
+    dashboardMusicWasPlaying=true;
+    dashboardPausedPandasMusic=true;
+    try{youtubeMusicPlayer?.pauseVideo?.();}catch{}
+    updateMusicPlayerUI();
+  }
+}
+
+function resumePandasMusicAfterDashboard(){
+  if(!dashboardPausedPandasMusic)return;
+
+  dashboardPausedPandasMusic=false;
+  const shouldResume=dashboardMusicWasPlaying;
+  dashboardMusicWasPlaying=false;
+
+  if(shouldResume && !customAnnouncementAudio){
+    setTimeout(()=>playYoutubeMusic().catch(()=>{}),180);
+  }
+}
+
+function cleanupDashboardYoutubePlayer(){
+  if(dashboardYoutubeAudioTimer){
+    clearInterval(dashboardYoutubeAudioTimer);
+    dashboardYoutubeAudioTimer=null;
+  }
+
+  if(dashboardYoutubePlayer){
+    try{dashboardYoutubePlayer.destroy?.();}catch{}
+    dashboardYoutubePlayer=null;
+  }
+
+  resumePandasMusicAfterDashboard();
+}
+
+function checkDashboardYoutubeAudio(){
+  if(!dashboardYoutubePlayer || !window.YT)return;
+
+  try{
+    const stateNow=dashboardYoutubePlayer.getPlayerState?.();
+    const playing=stateNow===window.YT.PlayerState.PLAYING;
+    const audible=playing &&
+      !dashboardYoutubePlayer.isMuted?.() &&
+      Number(dashboardYoutubePlayer.getVolume?.()||0)>0;
+
+    if(audible){
+      pausePandasMusicForDashboard();
+    }else{
+      resumePandasMusicAfterDashboard();
+    }
+  }catch{}
+}
+
+async function attachDashboardYoutubeController(){
+  const frame=document.getElementById("dashboardMediaFrame");
+  if(!frame || frame.classList.contains("hidden") || !frame.src)return;
+
+  try{
+    const YT=await loadYoutubeIframeAPI();
+
+    // Se a mídia mudou enquanto a API carregava, não cria player no iframe antigo.
+    if(!frame.src || frame.classList.contains("hidden"))return;
+
+    dashboardYoutubePlayer=new YT.Player(frame,{
+      events:{
+        onReady:()=>{
+          if(dashboardYoutubeAudioTimer)clearInterval(dashboardYoutubeAudioTimer);
+          dashboardYoutubeAudioTimer=setInterval(checkDashboardYoutubeAudio,500);
+          checkDashboardYoutubeAudio();
+        },
+        onStateChange:event=>{
+          if(
+            event.data===YT.PlayerState.PAUSED ||
+            event.data===YT.PlayerState.ENDED ||
+            event.data===YT.PlayerState.CUED
+          ){
+            resumePandasMusicAfterDashboard();
+          }else{
+            setTimeout(checkDashboardYoutubeAudio,80);
+          }
+        },
+        onError:()=>{
+          resumePandasMusicAfterDashboard();
+        }
+      }
+    });
+  }catch(err){
+    console.warn("Dashboard YouTube controller:",err);
+  }
+}
+
 function youtubeEmbedUrl(url){
   try{
     const u=new URL(url);
@@ -1057,7 +1159,7 @@ function youtubeEmbedUrl(url){
       else if(u.pathname.startsWith("/shorts/")) id=u.pathname.split("/")[2]||"";
       else if(u.pathname.startsWith("/embed/")) id=u.pathname.split("/")[2]||"";
     }
-    return id ? `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&loop=1&playlist=${id}&playsinline=1` : "";
+    return id ? `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&loop=1&playlist=${id}&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(location.origin)}` : "";
   }catch{return "";}
 }
 
@@ -1069,6 +1171,8 @@ function showDashboardMediaError(message){
 }
 
 function renderDashboardMedia(){
+  cleanupDashboardYoutubePlayer();
+
   const img=document.getElementById('dashboardMediaImage');
   const video=document.getElementById('dashboardMediaVideo');
   const frame=document.getElementById('dashboardMediaFrame');
@@ -1124,6 +1228,9 @@ function renderDashboardMedia(){
     }
     frame.src=embed;
     frame.classList.remove('hidden');
+    // O vídeo do Dashboard começa mudo. Se o usuário ativar o som,
+    // o PANDAS MUSIC pausa e volta quando o vídeo for pausado/mutado.
+    setTimeout(()=>attachDashboardYoutubeController(),250);
     return;
   }
 
@@ -1132,9 +1239,21 @@ function renderDashboardMedia(){
       video.classList.add('hidden');
       showDashboardMediaError('O vídeo não pôde ser reproduzido. Para URL, use um link direto para arquivo MP4/WebM (o endereço normalmente termina em .mp4 ou .webm), ou selecione YouTube quando for um link do YouTube.');
     };
+    const syncDashboardVideoAudio=()=>{
+      const audible=!video.paused && !video.muted && Number(video.volume||0)>0;
+      if(audible) pausePandasMusicForDashboard();
+      else resumePandasMusicAfterDashboard();
+    };
+
+    video.onplay=syncDashboardVideoAudio;
+    video.onpause=()=>resumePandasMusicAfterDashboard();
+    video.onended=()=>resumePandasMusicAfterDashboard();
+    video.onvolumechange=syncDashboardVideoAudio;
+
     video.oncanplay=()=>{
       if(errorBox) errorBox.classList.add('hidden');
       video.play().catch(()=>{});
+      setTimeout(syncDashboardVideoAudio,100);
     };
     video.src=src;
     video.classList.remove('hidden');
@@ -2041,6 +2160,10 @@ function friendlyAuthError(err){
 let youtubeApiPromise=null;
 let youtubeMusicPlayer=null;
 let youtubeMusicReady=false;
+let youtubeMusicReadyPromise=null;
+let youtubeMusicReadyResolve=null;
+let youtubeMusicReadyReject=null;
+let pendingMusicPlay=false;
 let youtubeLoadedSourceKey="";
 let customAnnouncementAudio=null;
 let currentAnnouncementId="";
@@ -2153,19 +2276,81 @@ function loadYoutubeIframeAPI(){
   return youtubeApiPromise;
 }
 
-async function ensureYoutubeMusicPlayer(){
-  if(youtubeMusicPlayer)return youtubeMusicPlayer;
 
-  const sourceType=state.music.youtubeSourceType||
+function createYoutubeMusicReadyPromise(){
+  if(youtubeMusicReady)return Promise.resolve(youtubeMusicPlayer);
+  if(youtubeMusicReadyPromise)return youtubeMusicReadyPromise;
+
+  youtubeMusicReadyPromise=new Promise((resolve,reject)=>{
+    youtubeMusicReadyResolve=resolve;
+    youtubeMusicReadyReject=reject;
+  });
+
+  return youtubeMusicReadyPromise;
+}
+
+async function waitForYoutubeMusicReady(timeoutMs=10000){
+  if(youtubeMusicReady && youtubeMusicPlayer)return youtubeMusicPlayer;
+
+  const ready=createYoutubeMusicReadyPromise();
+
+  return Promise.race([
+    ready,
+    new Promise((_,reject)=>setTimeout(
+      ()=>reject(new Error("O player do YouTube demorou para ficar pronto.")),
+      timeoutMs
+    ))
+  ]);
+}
+
+function currentYoutubeMusicSource(){
+  const type=state.music.youtubeSourceType||
     (state.music.youtubePlaylistId?"playlist":
      state.music.youtubeVideoId?"video":"");
 
-  const sourceId=sourceType==="playlist"
+  const id=type==="playlist"
     ? state.music.youtubePlaylistId
     : state.music.youtubeVideoId;
 
-  if(!sourceType || !sourceId)return null;
+  return {type,id,key:type&&id?`${type}:${id}`:""};
+}
 
+function cueCurrentYoutubeSource(player){
+  const source=currentYoutubeMusicSource();
+  if(!source.type || !source.id)return false;
+
+  if(source.key===youtubeLoadedSourceKey)return true;
+
+  if(source.type==="playlist"){
+    player.cuePlaylist({
+      listType:"playlist",
+      list:source.id,
+      index:0,
+      startSeconds:0
+    });
+    player.setLoop(true);
+  }else{
+    player.cueVideoById(source.id);
+  }
+
+  youtubeLoadedSourceKey=source.key;
+  return true;
+}
+
+async function ensureYoutubeMusicPlayer(){
+  if(youtubeMusicPlayer){
+    if(youtubeMusicReady)return youtubeMusicPlayer;
+    return waitForYoutubeMusicReady();
+  }
+
+  const source=currentYoutubeMusicSource();
+  if(!source.type || !source.id)return null;
+
+  setMusicSubtitle("Carregando player do YouTube...");
+
+  // Começa a carregar a API o quanto antes e cria uma Promise de readiness
+  // antes de instanciar YT.Player, evitando perder o evento onReady.
+  createYoutubeMusicReadyPromise();
   const YT=await loadYoutubeIframeAPI();
 
   const playerVars={
@@ -2176,33 +2361,24 @@ async function ensureYoutubeMusicPlayer(){
     controls:0
   };
 
-  if(sourceType==="playlist"){
+  if(source.type==="playlist"){
     playerVars.listType="playlist";
-    playerVars.list=sourceId;
+    playerVars.list=source.id;
   }
 
   youtubeMusicPlayer=new YT.Player("youtubeMusicPlayer",{
     width:"160",
     height:"90",
-    videoId:sourceType==="video"?sourceId:undefined,
+    videoId:source.type==="video"?source.id:undefined,
     playerVars,
     events:{
       onReady:event=>{
         youtubeMusicReady=true;
-        youtubeLoadedSourceKey=`${sourceType}:${sourceId}`;
 
         try{
-          if(sourceType==="playlist"){
-            event.target.cuePlaylist({
-              listType:"playlist",
-              list:sourceId,
-              index:0,
-              startSeconds:0
-            });
-            event.target.setLoop(true);
-          }else{
-            event.target.cueVideoById(sourceId);
-          }
+          // Força o conteúdo atual, mesmo que tenha mudado durante o carregamento.
+          youtubeLoadedSourceKey="";
+          cueCurrentYoutubeSource(event.target);
 
           event.target.setVolume(
             Number(document.getElementById("musicVolume")?.value||65)
@@ -2211,7 +2387,17 @@ async function ensureYoutubeMusicPlayer(){
           console.warn("PANDAS MUSIC ready:",err);
         }
 
+        youtubeMusicReadyResolve?.(event.target);
+        youtubeMusicReadyResolve=null;
+        youtubeMusicReadyReject=null;
+
         updateMusicPlayerUI();
+
+        // Se o usuário apertou Play antes do onReady, executa agora.
+        if(pendingMusicPlay){
+          pendingMusicPlay=false;
+          setTimeout(()=>playYoutubeMusic().catch(()=>{}),50);
+        }
       },
       onStateChange:event=>{
         lastKnownYoutubeState=event.data;
@@ -2219,12 +2405,13 @@ async function ensureYoutubeMusicPlayer(){
       },
       onError:event=>{
         console.warn("YouTube player error",event.data);
-        setMusicSubtitle("Não foi possível reproduzir este conteúdo.");
+        pendingMusicPlay=false;
+        setMusicSubtitle(`Erro do YouTube (${event.data}). Tente outro vídeo/playlist.`);
       }
     }
   });
 
-  return youtubeMusicPlayer;
+  return waitForYoutubeMusicReady();
 }
 
 function setMusicSubtitle(text){
@@ -2280,21 +2467,18 @@ function updateMusicPlayerUI(){
       ?`${sourceLabel} • tocando`
       :`${sourceLabel} • toque ▶ para ouvir`;
   }
-  if(playBtn)playBtn.textContent=isYoutubePlaying()?"⏸":"▶";
+  if(playBtn){
+    playBtn.textContent=isYoutubePlaying()?"⏸":"▶";
+    playBtn.disabled=false;
+  }
 }
 
 async function applyMusicConfiguration(){
   updateMusicPlayerUI();
 
-  const sourceType=state.music.youtubeSourceType||
-    (state.music.youtubePlaylistId?"playlist":
-     state.music.youtubeVideoId?"video":"");
+  const source=currentYoutubeMusicSource();
 
-  const sourceId=sourceType==="playlist"
-    ? state.music.youtubePlaylistId
-    : state.music.youtubeVideoId;
-
-  if(!sourceType || !sourceId){
+  if(!source.type || !source.id){
     if(youtubeMusicPlayer && youtubeMusicReady){
       try{youtubeMusicPlayer.stopVideo();}catch{}
     }
@@ -2303,29 +2487,19 @@ async function applyMusicConfiguration(){
   }
 
   try{
+    // Pré-carrega e deixa a fonte pronta, mas não força reprodução com som.
     const player=await ensureYoutubeMusicPlayer();
     if(!player)return;
 
-    const sourceKey=`${sourceType}:${sourceId}`;
-
-    if(youtubeMusicReady && sourceKey!==youtubeLoadedSourceKey){
-      youtubeLoadedSourceKey=sourceKey;
-
-      if(sourceType==="playlist"){
-        player.cuePlaylist({
-          listType:"playlist",
-          list:sourceId,
-          index:0,
-          startSeconds:0
-        });
-        player.setLoop(true);
-      }else{
-        player.cueVideoById(sourceId);
-      }
-    }
+    cueCurrentYoutubeSource(player);
+    setMusicSubtitle(
+      source.type==="video"
+        ?"Vídeo do PANDAS FC • toque ▶ para ouvir"
+        :"Playlist do PANDAS FC • toque ▶ para ouvir"
+    );
   }catch(err){
     console.warn(err);
-    setMusicSubtitle("Falha ao carregar conteúdo do YouTube.");
+    setMusicSubtitle("Falha ao carregar o player. Toque ▶ para tentar novamente.");
   }
 }
 
@@ -2336,23 +2510,57 @@ async function playYoutubeMusic(){
     return;
   }
 
+  const source=currentYoutubeMusicSource();
+  if(!source.type || !source.id){
+    toast("A DIRETORIA ainda não configurou música ou vídeo.");
+    return;
+  }
+
+  musicUserStarted=true;
+  pendingMusicPlay=true;
+  setMusicSubtitle("Carregando player...");
+
   try{
     const player=await ensureYoutubeMusicPlayer();
     if(!player){
-      toast("A DIRETORIA ainda não configurou música ou vídeo.");
+      pendingMusicPlay=false;
+      toast("Não foi possível criar o player.");
       return;
     }
 
-    musicUserStarted=true;
-    player.unMute?.();
-    player.setVolume?.(Number(document.getElementById("musicVolume")?.value||65));
+    await waitForYoutubeMusicReady(10000);
+    cueCurrentYoutubeSource(player);
 
-    if(youtubeMusicReady){
-      player.playVideo();
+    player.unMute?.();
+    player.setVolume?.(
+      Number(document.getElementById("musicVolume")?.value||65)
+    );
+
+    pendingMusicPlay=false;
+    player.playVideo();
+
+    // Alguns aparelhos demoram para refletir o estado. Confere e tenta mais
+    // uma vez sem exigir novo toque do usuário.
+    await new Promise(resolve=>setTimeout(resolve,450));
+
+    if(!isYoutubePlaying()){
+      try{player.playVideo();}catch{}
     }
+
+    setTimeout(()=>{
+      if(!isYoutubePlaying()){
+        setMusicSubtitle(
+          "O YouTube não iniciou. Toque ▶ novamente ou teste outro vídeo."
+        );
+      }
+      updateMusicPlayerUI();
+    },900);
+
   }catch(err){
-    console.warn(err);
-    toast("Não foi possível iniciar a música.");
+    pendingMusicPlay=false;
+    console.warn("PANDAS MUSIC play:",err);
+    setMusicSubtitle("Player não ficou pronto. Toque ▶ para tentar novamente.");
+    toast(err?.message||"Não foi possível iniciar a música.");
   }
 }
 
@@ -2651,6 +2859,14 @@ function handleRemoteAnnouncement(announcement){
     updateMusicPlayerUI();
   });
 }
+
+// Pré-carrega a biblioteca oficial do YouTube logo após o app abrir.
+// Isso reduz o atraso quando o usuário toca em ▶ pela primeira vez.
+setTimeout(()=>{
+  loadYoutubeIframeAPI().catch(err=>{
+    console.warn("Pré-carga YouTube:",err);
+  });
+},150);
 
 // Controles do mini player.
 document.getElementById("musicPlayBtn")?.addEventListener("click",toggleMusicPlayback);
