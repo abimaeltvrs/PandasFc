@@ -1445,3 +1445,9 @@ input:disabled{opacity:.72;cursor:not-allowed}
     min-height:72vh !important;
   }
 }
+
+/* v43 - Estatisticas por temporada */
+.stats-season-controls{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}
+.stats-season-controls label{font-size:.8rem;font-weight:800;opacity:.85}
+#statsSeasonSelect{min-width:130px;padding:10px 12px;border-radius:10px}
+@media(max-width:640px){.stats-season-controls{width:100%;display:grid;grid-template-columns:1fr}#statsSeasonSelect,#generateStatsPdf{width:100%}}

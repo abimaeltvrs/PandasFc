@@ -9,7 +9,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" href="./icon-192.png" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
-  <link rel="stylesheet" href="./styles.css?v=42" />
+  <link rel="stylesheet" href="./styles.css?v=43" />
   <title>PANDAS FC</title>
 
   <!-- OneSignal Web Push - usa o MESMO service worker do PWA -->
@@ -278,7 +278,11 @@
       <section id="estatisticas" class="page">
         <div class="page-header">
           <div><h2>📊 Estatísticas</h2><p>Dados calculados a partir das partidas finalizadas.</p></div>
-          <button id="generateStatsPdf" class="primary" type="button">📄 Gerar PDF</button>
+          <div class="stats-season-controls">
+            <label for="statsSeasonSelect">Temporada</label>
+            <select id="statsSeasonSelect"></select>
+            <button id="generateStatsPdf" class="primary" type="button">📄 Gerar PDF</button>
+          </div>
         </div>
         <div id="statsCards" class="stats-grid"></div>
         <div class="card">
@@ -470,6 +474,6 @@
 
 
 
-  <script type="module" src="./app.js?v=42"></script>
+  <script type="module" src="./app.js?v=43"></script>
 </body>
 </html>

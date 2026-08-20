@@ -1,0 +1,8 @@
+PANDAS FC v43 — ESTATÍSTICAS POR TEMPORADA
+
+- Seletor automático de temporada: 2026, 2025 etc.
+- Opção Todas para histórico geral.
+- Estatísticas e histórico são filtrados pela data do jogo.
+- PDF respeita a temporada selecionada e inclui o ano no nome.
+- Artilharia permanece como está e pode ser zerada manualmente ao final do ano.
+- Nenhuma alteração em Firebase, regras, chat, online, música, escalação, login ou notificações.

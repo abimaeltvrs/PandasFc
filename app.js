@@ -1081,8 +1081,28 @@ function drawContain(ctx,img,x,y,w,h){const r=Math.min(w/img.width,h/img.height)
 
 
 
+let selectedStatsSeason="";
+function eventSeason(e){const m=String(e?.date||"").match(/^(\d{4})-/);return m?m[1]:"";}
+function availableStatsSeasons(){return [...new Set(state.events.map(eventSeason).filter(Boolean))].sort((a,b)=>Number(b)-Number(a));}
+function ensureStatsSeason(){
+ const seasons=availableStatsSeasons();
+ if(!selectedStatsSeason||(selectedStatsSeason!=="all"&&!seasons.includes(selectedStatsSeason))){
+   const current=String(new Date().getFullYear());
+   selectedStatsSeason=seasons.includes(current)?current:(seasons[0]||"all");
+ }
+ return selectedStatsSeason;
+}
+function renderStatsSeasonSelect(){
+ const el=document.getElementById("statsSeasonSelect");if(!el)return;
+ const seasons=availableStatsSeasons();ensureStatsSeason();
+ el.innerHTML=seasons.map(y=>`<option value="${y}">${y}</option>`).join("")+'<option value="all">Todas</option>';
+ el.value=selectedStatsSeason;
+}
+function statsSeasonLabel(){return ensureStatsSeason()==="all"?"Todas as temporadas":`Temporada ${selectedStatsSeason}`;}
+function eventsForSelectedStatsSeason(){const s=ensureStatsSeason();return state.events.filter(e=>s==="all"||eventSeason(e)===s);}
+
 function calculateStatsData(){
-  const done=state.events.filter(e=>e.goalsFor!==''&&e.goalsAgainst!=='');
+  const done=eventsForSelectedStatsSeason().filter(e=>e.goalsFor!==''&&e.goalsAgainst!=='');
   let wins=0,draws=0,losses=0,gf=0,ga=0;
 
   done.forEach(e=>{
@@ -1205,7 +1225,7 @@ function buildStatsPdfPages(){
     content+=pdfRect(0,808,595,34,0.12);
     content+=`1 g\n`;
     content+=pdfText(38,825,18,"PANDAS FC",true);
-    content+=pdfText(38,812,9,"RELATORIO DE ESTATISTICAS",false);
+    content+=pdfText(38,812,9,`RELATORIO DE ESTATISTICAS - ${statsSeasonLabel().toUpperCase()}`,false);
     content+=`0 g\n`;
     y=780;
   }
@@ -1309,7 +1329,7 @@ function buildStatsPdfPages(){
 
   ensureSpace(90);
   separator();
-  line("Artilharia",12,true);
+  line("Artilharia atual",12,true);
 
   const scorers=[...state.players]
     .filter(p=>Number(p.goals||0)>0)
@@ -1350,7 +1370,7 @@ async function generateStatisticsPdf(){
     const url=URL.createObjectURL(blob);
 
     const filename=
-      `pandas-fc-estatisticas-${new Date().toISOString().slice(0,10)}.pdf`;
+      `pandas-fc-estatisticas-${selectedStatsSeason==="all"?"todas":selectedStatsSeason}-${new Date().toISOString().slice(0,10)}.pdf`;
 
     const link=document.createElement("a");
     link.href=url;
@@ -1380,7 +1400,8 @@ async function generateStatisticsPdf(){
 
 
 function renderStats(){
- const done=state.events.filter(e=>e.goalsFor!==''&&e.goalsAgainst!=='');let w=0,d=0,l=0,gf=0,ga=0;
+ renderStatsSeasonSelect();
+ const done=eventsForSelectedStatsSeason().filter(e=>e.goalsFor!==''&&e.goalsAgainst!=='');let w=0,d=0,l=0,gf=0,ga=0;
  done.forEach(e=>{const a=Number(e.goalsFor),b=Number(e.goalsAgainst);gf+=a;ga+=b;if(a>b)w++;else if(a<b)l++;else d++;});
  const pts=w*3+d,ap=done.length?Math.round((pts/(done.length*3))*100):0;
  const cards=[['Jogos',done.length],['Vitórias',w],['Empates',d],['Derrotas',l],['Gols marcados',gf],['Gols sofridos',ga],['Saldo',gf-ga],['Aproveitamento',ap+'%']];
@@ -3413,6 +3434,10 @@ document.getElementById("chatPinned")?.addEventListener("click",e=>{if(e.target.
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){presenceBeat();if(currentUser)startChat();}});
 window.addEventListener("focus",()=>{presenceBeat();if(currentUser)startChat();});
 
+document.getElementById("statsSeasonSelect")?.addEventListener("change",event=>{
+ selectedStatsSeason=event.target.value||"all";
+ renderStats();
+});
 document.getElementById("generateStatsPdf")?.addEventListener("click",generateStatisticsPdf);
 
 window.editPlayer=editPlayer;
