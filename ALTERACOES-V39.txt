@@ -1,0 +1,32 @@
+PANDAS FC v39 — MENU POR PERFIL
+
+JOGADOR:
+1. Início / Dashboard
+2. Bate-papo
+3. Escalação
+4. Partidas
+5. Agenda
+6. Estatísticas
+7. Configurações
+
+Para JOGADOR foram ocultados do menu:
+- Elenco
+- Artilharia
+
+DIRETORIA:
+1. Início / Dashboard
+2. Bate-papo
+3. Elenco
+4. Artilharia
+5. Escalação
+6. Partidas
+7. Agenda
+8. Estatísticas
+9. Configurações
+
+Cadastro de Jogadores e Música não aparecem mais como botões no menu,
+pois não constam nas ordens solicitadas. O código e as funcionalidades dessas
+áreas não foram apagados do projeto.
+
+As regras internas já existentes de DIRETORIA/JOGADOR foram mantidas.
+Cache atualizado para v39.

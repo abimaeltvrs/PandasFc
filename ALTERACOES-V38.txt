@@ -1,0 +1,15 @@
+PANDAS FC v38 — CHAT MOBILE + REALTIME
+
+- Caixa de texto grande e visível no celular.
+- Textarea de 300 caracteres.
+- Contador 0 / 300.
+- Enter envia; Shift+Enter quebra linha.
+- Botão Enviar ocupa largura total no celular.
+- Listener realtime simplificado sem orderBy.
+- Últimas 100 mensagens ordenadas no navegador.
+- Status visível do realtime.
+- Fallback getDocs se realtime falhar.
+- Reconecta ao voltar ao app.
+- Mensagem local aparece como “enviando...” até o Firebase confirmar.
+
+Mantidas todas as funções da v37/v36.

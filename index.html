@@ -9,7 +9,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" href="./icon-192.png" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
-  <link rel="stylesheet" href="./styles.css?v=37" />
+  <link rel="stylesheet" href="./styles.css?v=40" />
   <title>PANDAS FC</title>
 
   <!-- OneSignal Web Push - usa o MESMO service worker do PWA -->
@@ -113,15 +113,15 @@
   <div class="layout">
     <aside class="sidebar">
       <button class="nav-btn active" data-page="dashboard">🐼 Início / Dashboard</button>
+      <button class="nav-btn" data-page="chat">💬 Bate-papo</button>
       <button class="nav-btn admin-only" data-page="cadastro">👤 Cadastro de Jogadores</button>
-      <button class="nav-btn" data-page="elenco">📋 Elenco</button>
+      <button class="nav-btn admin-only" data-page="elenco">📋 Elenco</button>
+      <button class="nav-btn admin-only" data-page="artilharia">🏆 Artilharia</button>
       <button class="nav-btn" data-page="escalacao">⚽ Escalação</button>
       <button class="nav-btn" data-page="partidas">⚽ Partidas</button>
       <button class="nav-btn" data-page="agenda">📅 Agenda</button>
       <button class="nav-btn" data-page="estatisticas">📊 Estatísticas</button>
-      <button class="nav-btn" data-page="artilharia">🏆 Artilharia</button>
       <button class="nav-btn admin-only" data-page="musica">🎵 Música</button>
-      <button class="nav-btn" data-page="chat">💬 Bate-papo</button>
       <button class="nav-btn" data-page="config">⚙️ Configurações</button>
     </aside>
 
@@ -357,7 +357,7 @@
 
       <section id="chat" class="page">
         <div class="page-header">
-          <div><h2>💬 Bate-papo</h2><p>Mensagens em tempo real entre DIRETORIA e JOGADORES.</p></div>
+          <div><h2>💬 Bate-papo</h2><p>Mensagens em tempo real entre DIRETORIA e JOGADORES.</p><small id="chatRealtimeStatus" class="chat-realtime-status">🟡 Conectando ao bate-papo...</small></div>
           <div class="chat-online-pill">🟢 <span id="chatOnlineCount">0</span> online</div>
         </div>
         <div id="onlineUsersPanel" class="online-users-panel hidden">
@@ -367,17 +367,19 @@
         <div id="chatPinned" class="chat-pinned hidden"></div>
         <div id="chatMessages" class="chat-messages"><div class="muted">Carregando mensagens...</div></div>
         <form id="chatForm" class="chat-compose">
-          <div class="chat-emoji-row">
+          <div class="chat-emoji-row" aria-label="Emojis rápidos">
             <button type="button" class="emoji-btn">⚽</button><button type="button" class="emoji-btn">🔥</button>
             <button type="button" class="emoji-btn">👏</button><button type="button" class="emoji-btn">💪</button>
             <button type="button" class="emoji-btn">😂</button><button type="button" class="emoji-btn">👍</button>
             <button type="button" class="emoji-btn">🐼</button><button type="button" class="emoji-btn">🏆</button>
           </div>
-          <div class="chat-input-row">
-            <input id="chatInput" maxlength="300" autocomplete="off" placeholder="Digite uma mensagem..." />
-            <button class="primary" type="submit">Enviar</button>
+          <div class="chat-input-wrap">
+            <textarea id="chatInput" maxlength="300" rows="3" autocomplete="off" enterkeyhint="send" placeholder="Digite sua mensagem..."></textarea>
+            <div class="chat-input-footer">
+              <span id="chatCharCount" class="chat-char-count">0 / 300</span>
+              <button id="chatSendBtn" class="primary chat-send-btn" type="submit">Enviar</button>
+            </div>
           </div>
-          <small class="muted">Máximo de 300 caracteres.</small>
         </form>
       </section>
 
@@ -467,6 +469,6 @@
 
 
 
-  <script type="module" src="./app.js?v=37"></script>
+  <script type="module" src="./app.js?v=40"></script>
 </body>
 </html>

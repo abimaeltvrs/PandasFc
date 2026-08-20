@@ -204,7 +204,7 @@ function renderChat(){
   const msgs=[...chatMessages].sort((a,b)=>(a.createdAt?.toMillis?.()||0)-(b.createdAt?.toMillis?.()||0));
   box.innerHTML=msgs.length?msgs.map(m=>{
     const mine=m.uid===currentUser?.uid, canDelete=isDirector()||mine;
-    return `<article class="chat-message ${mine?"mine":""}"><div class="chat-message-head"><strong>${safeText(m.name||"Usuário")}</strong><span class="chat-role">${safeText(m.role||"JOGADOR")}</span><span>${chatTime(m.createdAt)}</span></div><div class="chat-message-text">${safeText(m.text||"")}</div>${(canDelete||isDirector())?`<div class="chat-message-actions">${isDirector()?`<button type="button" data-chat-pin="${m.id}">📌 Fixar</button>`:""}${canDelete?`<button type="button" data-chat-delete="${m.id}">🗑️ Apagar</button>`:""}</div>`:""}</article>`;
+    return `<article class="chat-message ${mine?"mine":""}"><div class="chat-message-head"><strong>${safeText(m.name||"Usuário")}</strong><span class="chat-role">${safeText(m.role||"JOGADOR")}</span><span>${m.pending?"enviando...":chatTime(m.createdAt)}</span></div><div class="chat-message-text">${safeText(m.text||"")}</div>${(canDelete||isDirector())?`<div class="chat-message-actions">${isDirector()?`<button type="button" data-chat-pin="${m.id}">📌 Fixar</button>`:""}${canDelete?`<button type="button" data-chat-delete="${m.id}">🗑️ Apagar</button>`:""}</div>`:""}</article>`;
   }).join(""):'<div class="muted">Nenhuma mensagem ainda. Seja o primeiro a escrever. 🐼</div>';
   const sig=msgs.map(m=>m.id).join("|");if(sig!==lastChatSignature){lastChatSignature=sig;box.scrollTop=box.scrollHeight;}
   const pin=document.getElementById("chatPinned");
@@ -213,17 +213,30 @@ function renderChat(){
 function stopChat(){
   if(chatUnsubscribe){chatUnsubscribe();chatUnsubscribe=null;}if(pinnedUnsubscribe){pinnedUnsubscribe();pinnedUnsubscribe=null;}
 }
+function setChatRealtimeStatus(text,type=""){
+  const el=document.getElementById("chatRealtimeStatus");if(!el)return;el.textContent=text;el.classList.remove("ok","err");if(type)el.classList.add(type);
+}
 function startChat(){
-  stopChat(); if(!currentUser)return;
-  const q=query(collection(db,"chatMessages"),orderBy("createdAt","desc"),limit(100));
-  chatUnsubscribe=onSnapshot(q,s=>{chatMessages=s.docs.map(d=>({id:d.id,...d.data()}));renderChat();},e=>{console.warn("chat:",e);document.getElementById("chatMessages").innerHTML='<div class="muted">Não foi possível carregar o bate-papo.</div>';});
-  pinnedUnsubscribe=onSnapshot(doc(db,"settings","chat"),s=>{pinnedChatMessage=s.exists()?(s.data().pinned||null):null;renderChat();},e=>console.warn("pin:",e));
+  stopChat();if(!currentUser)return;setChatRealtimeStatus("🟡 Conectando ao bate-papo...");
+  chatUnsubscribe=onSnapshot(collection(db,"chatMessages"),snap=>{
+    chatMessages=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.createdAt?.toMillis?.()||0)-(b.createdAt?.toMillis?.()||0)).slice(-100);
+    setChatRealtimeStatus("🟢 Bate-papo conectado","ok");renderChat();
+  },async err=>{
+    console.warn("chat realtime:",err);setChatRealtimeStatus("🔴 Realtime indisponível — tentando atualizar...","err");
+    try{const snap=await getDocs(collection(db,"chatMessages"));chatMessages=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.createdAt?.toMillis?.()||0)-(b.createdAt?.toMillis?.()||0)).slice(-100);renderChat();}
+    catch(readErr){console.warn("chat fallback:",readErr);const box=document.getElementById("chatMessages");if(box)box.innerHTML='<div class="muted">Não foi possível carregar o bate-papo.</div>';}
+  });
+  pinnedUnsubscribe=onSnapshot(doc(db,"settings","chat"),snap=>{pinnedChatMessage=snap.exists()?(snap.data().pinned||null):null;renderChat();},err=>console.warn("pin:",err));
 }
+
 async function sendChat(text){
-  const clean=String(text||"").trim().slice(0,300);if(!clean||!currentUser)return;
-  try{await setDoc(doc(collection(db,"chatMessages")),{uid:currentUser.uid,name:displayUserName(),role:roleLabel(),text:clean,createdAt:serverTimestamp()});}
-  catch(e){toast("Não foi possível enviar a mensagem.");}
+  const clean=String(text||"").trim().slice(0,300);if(!clean||!currentUser)return false;
+  const tempId=`local-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
+  chatMessages=[...chatMessages,{id:tempId,uid:currentUser.uid,name:displayUserName(),role:roleLabel(),text:clean,createdAt:null,pending:true}].slice(-100);renderChat();
+  try{await setDoc(doc(collection(db,"chatMessages")),{uid:currentUser.uid,name:displayUserName(),role:roleLabel(),text:clean,createdAt:serverTimestamp()});setChatRealtimeStatus("🟢 Mensagem enviada","ok");return true;}
+  catch(err){chatMessages=chatMessages.filter(m=>m.id!==tempId);renderChat();console.warn("send chat:",err);setChatRealtimeStatus("🔴 Falha ao enviar mensagem","err");toast("Não foi possível enviar a mensagem.");return false;}
 }
+
 async function removeChat(id){
   const m=chatMessages.find(x=>x.id===id);if(!m||(!isDirector()&&m.uid!==currentUser?.uid))return;
   try{await deleteDoc(doc(db,"chatMessages",id));}catch{toast("Não foi possível apagar.");}
@@ -3081,12 +3094,16 @@ document.getElementById("onlineCountBtn")?.addEventListener("click",()=>{
   document.querySelector('[data-page="chat"]')?.click();
   document.getElementById("onlineUsersPanel")?.classList.toggle("hidden");
 });
-document.getElementById("chatForm")?.addEventListener("submit",async e=>{e.preventDefault();const input=document.getElementById("chatInput");const text=input?.value||"";if(!text.trim())return;if(input)input.value="";await sendChat(text);});
-document.querySelectorAll(".emoji-btn").forEach(b=>b.addEventListener("click",()=>{const i=document.getElementById("chatInput");if(i){i.value+=b.textContent;i.focus();}}));
+const chatInputEl=document.getElementById("chatInput"), chatCharCountEl=document.getElementById("chatCharCount");
+function updateChatCharCount(){if(!chatInputEl||!chatCharCountEl)return;const n=chatInputEl.value.length;chatCharCountEl.textContent=`${n} / 300`;chatCharCountEl.classList.toggle("near-limit",n>=250&&n<300);chatCharCountEl.classList.toggle("at-limit",n>=300);}
+chatInputEl?.addEventListener("input",updateChatCharCount);updateChatCharCount();
+document.getElementById("chatForm")?.addEventListener("submit",async e=>{e.preventDefault();const text=chatInputEl?.value||"";if(!text.trim())return;const b=document.getElementById("chatSendBtn");if(b){b.disabled=true;b.textContent="Enviando...";}const ok=await sendChat(text);if(ok&&chatInputEl){chatInputEl.value="";updateChatCharCount();chatInputEl.focus();}if(b){b.disabled=false;b.textContent="Enviar";}});
+chatInputEl?.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();document.getElementById("chatForm")?.requestSubmit();}});
+document.querySelectorAll(".emoji-btn").forEach(b=>b.addEventListener("click",()=>{const i=chatInputEl;if(!i)return;const em=b.textContent||"",s=i.selectionStart??i.value.length,en=i.selectionEnd??i.value.length;i.value=i.value.slice(0,s)+em+i.value.slice(en);const p=s+em.length;i.setSelectionRange?.(p,p);i.focus();updateChatCharCount();}));
 document.getElementById("chatMessages")?.addEventListener("click",e=>{const d=e.target.closest("[data-chat-delete]"),p=e.target.closest("[data-chat-pin]");if(d)removeChat(d.dataset.chatDelete);if(p)pinChat(p.dataset.chatPin);});
 document.getElementById("chatPinned")?.addEventListener("click",e=>{if(e.target.closest("#unpinChatBtn"))unpinChat();});
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")presenceBeat();});
-window.addEventListener("focus",presenceBeat);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){presenceBeat();if(currentUser)startChat();}});
+window.addEventListener("focus",()=>{presenceBeat();if(currentUser)startChat();});
 
 window.editPlayer=editPlayer;
 window.deletePlayer=deletePlayer;

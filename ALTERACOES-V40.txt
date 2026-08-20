@@ -1,0 +1,26 @@
+PANDAS FC v40 — MENU CORRIGIDO
+
+JOGADOR:
+1. Início / Dashboard
+2. Bate-papo
+3. Escalação
+4. Partidas
+5. Agenda
+6. Estatísticas
+7. Configurações
+
+DIRETORIA:
+1. Início / Dashboard
+2. Bate-papo
+3. Cadastro de Jogadores
+4. Elenco
+5. Artilharia
+6. Escalação
+7. Partidas
+8. Agenda
+9. Estatísticas
+10. Música
+11. Configurações
+
+Cadastro de Jogadores, Elenco, Artilharia e Música continuam exclusivos da DIRETORIA.
+As demais regras e funcionalidades da v39/v38 foram mantidas.
