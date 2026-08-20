@@ -1,4 +1,4 @@
-const CACHE = "pandas-fc-v31-firebase-sync";
+const CACHE = "pandas-fc-v32-js-diagnostic";
 
 const CORE = [
   "./",

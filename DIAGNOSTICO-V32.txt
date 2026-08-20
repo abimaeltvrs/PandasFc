@@ -1,0 +1,14 @@
+PANDAS FC v32 - DIAGNÓSTICO JAVASCRIPT
+
+Esta versão NÃO tenta corrigir o Firebase por tentativa.
+
+Ela captura:
+- erros JavaScript globais;
+- Promise rejeitada sem tratamento;
+- arquivo/linha/coluna quando disponível;
+- watchdog após 20 segundos se continuar em "Conectando...".
+
+Se ocorrer problema, uma caixa vermelha aparecerá na parte inferior.
+Toque em "Copiar" e envie todo o texto no ChatGPT.
+
+Cache: pandas-fc-v32-js-diagnostic

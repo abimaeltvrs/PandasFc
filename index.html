@@ -9,7 +9,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" href="./icon-192.png" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
-  <link rel="stylesheet" href="./styles.css?v=31" />
+  <link rel="stylesheet" href="./styles.css?v=32" />
   <title>PANDAS FC</title>
 
   <!-- OneSignal Web Push - usa o MESMO service worker do PWA -->
@@ -46,6 +46,78 @@
       window.dispatchEvent(new Event("pandas-onesignal-ready"));
     });
   </script>
+
+
+<script>
+(function(){
+  const errors=[];
+  window.PandasBootDiagnostics=errors;
+
+  function stringifyReason(reason){
+    if(reason instanceof Error){
+      return {
+        name:reason.name,
+        message:reason.message,
+        stack:reason.stack||""
+      };
+    }
+    try{return JSON.parse(JSON.stringify(reason));}
+    catch{return String(reason);}
+  }
+
+  function add(kind,data){
+    errors.push({
+      time:new Date().toISOString(),
+      kind,
+      data
+    });
+    render();
+  }
+
+  function render(){
+    const box=document.getElementById("bootDiagnosticBox");
+    const text=document.getElementById("bootDiagnosticText");
+    if(!box||!text)return;
+    if(!errors.length)return;
+    box.classList.remove("hidden");
+    text.textContent=errors.map((e,i)=>
+      `#${i+1} ${e.time}\nTIPO: ${e.kind}\n`+
+      (typeof e.data==="string"?e.data:JSON.stringify(e.data,null,2))
+    ).join("\n\n");
+  }
+
+  window.addEventListener("error",function(e){
+    add("window.error",{
+      message:e.message||"",
+      filename:e.filename||"",
+      line:e.lineno||0,
+      column:e.colno||0,
+      error:stringifyReason(e.error)
+    });
+  });
+
+  window.addEventListener("unhandledrejection",function(e){
+    add("unhandledrejection",stringifyReason(e.reason));
+  });
+
+  window.addEventListener("DOMContentLoaded",function(){
+    render();
+    setTimeout(function(){
+      const status=document.getElementById("syncStatus");
+      if(status && /Conectando/i.test(status.textContent||"")){
+        add("watchdog",{
+          message:"Após 20 segundos o app ainda está em Conectando.",
+          syncStatus:status.textContent,
+          appVersion:"v32-diagnostico-js",
+          pandasOneSignal:!!window.PandasOneSignal,
+          url:location.href,
+          userAgent:navigator.userAgent
+        });
+      }
+    },20000);
+  });
+})();
+</script>
 
 </head>
 <body class="auth-pending">
@@ -433,6 +505,6 @@
   </div>
 
   <div id="toast" class="toast"></div>
-  <script type="module" src="./app.js?v=31"></script>
+  <script type="module" src="./app.js?v=32"></script>
 </body>
 </html>
