@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Diagnóstico de versão - PANDAS FC</title>
+<style>
+body{font-family:Arial,sans-serif;background:#061829;color:#fff;margin:0;padding:20px}
+.card{max-width:760px;margin:20px auto;background:#0b2740;border:1px solid #1e6f9f;border-radius:16px;padding:20px}
+button{width:100%;padding:13px;margin-top:12px;border:0;border-radius:9px;font-size:16px;font-weight:700}
+.primary{background:#1189cf;color:#fff}.secondary{background:#e8edf2;color:#102030}
+pre{white-space:pre-wrap;word-break:break-word;background:#04111d;padding:13px;border-radius:10px;min-height:260px;line-height:1.4}
+small{color:#b9d0df}
+</style>
+</head>
+<body>
+<div class="card">
+<h1>🐼 Diagnóstico de versão do PANDAS FC</h1>
+<small>Este arquivo não usa Firebase, OneSignal nem o app principal.</small>
+<button id="run" class="primary">🧪 Verificar arquivos e cache</button>
+<button id="copy" class="secondary">📋 Copiar resultado</button>
+<h3>Resultado</h3>
+<pre id="out">Aguardando...</pre>
+</div>
+
+<script>
+const out=document.getElementById("out");
+const lines=[];
+function add(label,value){
+  let v;
+  try{v=typeof value==="string"?value:JSON.stringify(value,null,2)}
+  catch{v=String(value)}
+  lines.push(label+": "+v);
+  out.textContent=lines.join("\n\n");
+}
+async function fetchText(url){
+  const r=await fetch(url,{cache:"no-store"});
+  const text=await r.text();
+  return {
+    status:r.status,
+    url:r.url,
+    cacheControl:r.headers.get("cache-control"),
+    etag:r.headers.get("etag"),
+    lastModified:r.headers.get("last-modified"),
+    text
+  };
+}
+function snippet(text,term){
+  const i=text.indexOf(term);
+  if(i===-1)return "NÃO ENCONTRADO";
+  return text.slice(Math.max(0,i-180),Math.min(text.length,i+420));
+}
+document.getElementById("run").onclick=async()=>{
+  lines.length=0;
+  add("Data/hora",new Date().toString());
+  add("URL atual",location.href);
+  add("User Agent",navigator.userAgent);
+  add("Online",navigator.onLine);
+
+  try{
+    const idx=await fetchText("./index.html?diag="+Date.now());
+    add("INDEX status",idx.status);
+    add("INDEX last-modified",idx.lastModified);
+    add("INDEX procura app.js?v=32",snippet(idx.text,"app.js?v=32"));
+    add("INDEX procura bootDiagnosticBox",snippet(idx.text,"bootDiagnosticBox"));
+    add("INDEX procura v31",snippet(idx.text,"app.js?v=31"));
+  }catch(e){add("INDEX ERRO",{name:e.name,message:e.message});}
+
+  try{
+    const app=await fetchText("./app.js?diag="+Date.now());
+    add("APP status",app.status);
+    add("APP last-modified",app.lastModified);
+    add("APP procura Sincronização inicial",snippet(app.text,"Sincronização inicial"));
+    add("APP procura async function connectRealtime",snippet(app.text,"async function connectRealtime"));
+    add("APP procura PANDAS MUSIC",snippet(app.text,"PANDAS MUSIC"));
+  }catch(e){add("APP ERRO",{name:e.name,message:e.message});}
+
+  try{
+    const sw=await fetchText("./sw.js?diag="+Date.now());
+    add("SW status",sw.status);
+    add("SW last-modified",sw.lastModified);
+    add("SW procura v32",snippet(sw.text,"pandas-fc-v32-js-diagnostic"));
+    add("SW primeira parte",sw.text.slice(0,500));
+  }catch(e){add("SW ERRO",{name:e.name,message:e.message});}
+
+  try{
+    const regs=await navigator.serviceWorker.getRegistrations();
+    add("Service Workers",regs.map(r=>({
+      scope:r.scope,
+      active:r.active?.scriptURL||null,
+      waiting:r.waiting?.scriptURL||null,
+      installing:r.installing?.scriptURL||null
+    })));
+    add("Controller",navigator.serviceWorker.controller?.scriptURL||null);
+  }catch(e){add("SERVICE WORKER ERRO",{name:e.name,message:e.message});}
+
+  try{
+    const keys=await caches.keys();
+    add("Caches encontrados",keys);
+  }catch(e){add("CACHE ERRO",{name:e.name,message:e.message});}
+
+  add("RESULTADO FINAL","Copie TODO o resultado e envie.");
+};
+
+document.getElementById("copy").onclick=async()=>{
+  try{
+    await navigator.clipboard.writeText(out.textContent);
+    alert("Resultado copiado.");
+  }catch{
+    alert("Não foi possível copiar automaticamente.");
+  }
+};
+</script>
+</body>
+</html>
