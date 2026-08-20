@@ -1,0 +1,31 @@
+PANDAS FC v44 — UPLOAD DA GALERIA
+
+Cloudinary configurado:
+Cloud name: csv4tgul
+Upload preset: pandas_fc_media (Unsigned)
+
+NOVA FUNÇÃO — DIRETORIA > CONFIGURAÇÕES > MÍDIA DO DASHBOARD
+1. Escolher foto ou vídeo da galeria.
+2. Visualizar nome, tipo e tamanho do arquivo.
+3. Tocar em "Enviar e publicar no Dashboard".
+4. Acompanhar progresso 0–100%.
+5. O arquivo é enviado ao Cloudinary.
+6. O Firebase recebe somente a URL.
+7. O Dashboard é atualizado para todos os usuários.
+
+MANTIDO:
+- upload antigo de arquivo pequeno via Firestore;
+- URL de mídia;
+- YouTube;
+- remover mídia;
+- estatísticas por temporada;
+- PDF;
+- chat;
+- online;
+- login;
+- escalação;
+- música;
+- OneSignal;
+- permissões DIRETORIA/JOGADOR.
+
+Não é necessário alterar firestore.rules para esta versão.

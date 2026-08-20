@@ -9,7 +9,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" href="./icon-192.png" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
-  <link rel="stylesheet" href="./styles.css?v=43" />
+  <link rel="stylesheet" href="./styles.css?v=44" />
   <title>PANDAS FC</title>
 
   <!-- OneSignal Web Push - usa o MESMO service worker do PWA -->
@@ -438,10 +438,28 @@
           <button id="installBtn2" class="primary">📲 Instalar aplicativo</button>
           <div class="config-section admin-only">
             <h3>🎬 Mídia do Início / Dashboard</h3>
-            <p class="muted">Aceita PNG, GIF, MP4 e WebM. Arquivos enviados diretamente devem ter até 650 KB para sincronizar pelo Firestore.</p>
-            <label>Enviar arquivo
-              <input id="dashboardMediaInput" type="file" accept="image/png,image/gif,video/mp4,video/webm" />
-            </label>
+            <p class="muted">Agora você também pode escolher fotos e vídeos diretamente da galeria. O arquivo grande é enviado ao Cloudinary e o Firebase sincroniza apenas o link.</p>
+
+            <div class="dashboard-gallery-upload">
+              <h4>📷 Foto ou vídeo da galeria</h4>
+              <label>Escolher da galeria
+                <input id="dashboardCloudinaryInput" type="file" accept="image/*,video/*" />
+              </label>
+              <div id="dashboardCloudinaryFileInfo" class="muted">Nenhum arquivo selecionado.</div>
+              <div id="dashboardUploadProgressWrap" class="dashboard-upload-progress hidden">
+                <div id="dashboardUploadProgressBar" class="dashboard-upload-progress-bar"></div>
+              </div>
+              <div id="dashboardUploadProgressText" class="muted"></div>
+              <button id="uploadDashboardCloudinary" class="primary" type="button" disabled>☁️ Enviar e publicar no Dashboard</button>
+            </div>
+
+            <details class="dashboard-legacy-upload">
+              <summary>Arquivo pequeno pelo Firebase (opção antiga)</summary>
+              <p class="muted">Mantido sem alterações. PNG, GIF, MP4 ou WebM de até aproximadamente 700 KB.</p>
+              <label>Enviar arquivo pequeno
+                <input id="dashboardMediaInput" type="file" accept="image/png,image/gif,video/mp4,video/webm" />
+              </label>
+            </details>
             <label>Ou usar uma URL de mídia
               <input id="dashboardMediaUrl" type="url" placeholder="https://..." />
             </label>
@@ -474,6 +492,6 @@
 
 
 
-  <script type="module" src="./app.js?v=43"></script>
+  <script type="module" src="./app.js?v=44"></script>
 </body>
 </html>

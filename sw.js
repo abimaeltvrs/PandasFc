@@ -1,4 +1,4 @@
-const CACHE = "pandas-fc-v43-temporadas";
+const CACHE = "pandas-fc-v44-cloudinary-gallery";
 
 const CORE = [
   "./",

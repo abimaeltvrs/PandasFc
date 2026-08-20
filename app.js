@@ -1688,6 +1688,155 @@ function renderDashboardMedia(){
   img.classList.remove('hidden');
 }
 
+
+/* =========================================================
+   v44 — Upload de foto/vídeo da galeria via Cloudinary
+   Mantém todas as formas anteriores de mídia.
+   ========================================================= */
+const PANDAS_CLOUDINARY_CLOUD_NAME="csv4tgul";
+const PANDAS_CLOUDINARY_UPLOAD_PRESET="pandas_fc_media";
+let dashboardCloudinaryFile=null;
+
+function formatMediaFileSize(bytes){
+  const mb=Number(bytes||0)/(1024*1024);
+  return mb<1?`${Math.max(1,Math.round(Number(bytes||0)/1024))} KB`:`${mb.toFixed(mb>=10?1:2)} MB`;
+}
+
+function setDashboardUploadProgress(percent,text=""){
+  const wrap=document.getElementById("dashboardUploadProgressWrap");
+  const bar=document.getElementById("dashboardUploadProgressBar");
+  const label=document.getElementById("dashboardUploadProgressText");
+  if(wrap)wrap.classList.remove("hidden");
+  if(bar)bar.style.width=`${Math.max(0,Math.min(100,percent))}%`;
+  if(label)label.textContent=text||`${Math.round(percent)}%`;
+}
+
+document.getElementById("dashboardCloudinaryInput")?.addEventListener("change",event=>{
+  if(!requireDirector()){event.target.value="";return;}
+  const file=event.target.files?.[0]||null;
+  dashboardCloudinaryFile=file;
+
+  const info=document.getElementById("dashboardCloudinaryFileInfo");
+  const button=document.getElementById("uploadDashboardCloudinary");
+  const wrap=document.getElementById("dashboardUploadProgressWrap");
+  const progressText=document.getElementById("dashboardUploadProgressText");
+
+  if(wrap)wrap.classList.add("hidden");
+  if(progressText)progressText.textContent="";
+
+  if(!file){
+    if(info)info.textContent="Nenhum arquivo selecionado.";
+    if(button)button.disabled=true;
+    return;
+  }
+
+  if(!file.type.startsWith("image/")&&!file.type.startsWith("video/")){
+    alert("Selecione uma foto ou vídeo da galeria.");
+    event.target.value="";
+    dashboardCloudinaryFile=null;
+    if(info)info.textContent="Nenhum arquivo selecionado.";
+    if(button)button.disabled=true;
+    return;
+  }
+
+  if(info){
+    info.textContent=`${file.name} • ${file.type.startsWith("video/")?"Vídeo":"Imagem"} • ${formatMediaFileSize(file.size)}`;
+  }
+  if(button)button.disabled=false;
+});
+
+function uploadDashboardFileToCloudinary(file){
+  return new Promise((resolve,reject)=>{
+    const endpoint=
+      `https://api.cloudinary.com/v1_1/${encodeURIComponent(PANDAS_CLOUDINARY_CLOUD_NAME)}/auto/upload`;
+
+    const form=new FormData();
+    form.append("file",file);
+    form.append("upload_preset",PANDAS_CLOUDINARY_UPLOAD_PRESET);
+
+    const xhr=new XMLHttpRequest();
+    xhr.open("POST",endpoint,true);
+    xhr.responseType="json";
+
+    xhr.upload.onprogress=event=>{
+      if(!event.lengthComputable)return;
+      const percent=(event.loaded/event.total)*100;
+      setDashboardUploadProgress(percent,`Enviando... ${Math.round(percent)}%`);
+    };
+
+    xhr.onerror=()=>reject(new Error("Falha de conexão durante o upload para o Cloudinary."));
+    xhr.onabort=()=>reject(new Error("Upload cancelado."));
+    xhr.onload=()=>{
+      const response=xhr.response || (()=>{try{return JSON.parse(xhr.responseText||"{}");}catch{return {};}})();
+      if(xhr.status>=200&&xhr.status<300&&response?.secure_url){
+        resolve(response);
+        return;
+      }
+      reject(new Error(response?.error?.message||`Cloudinary retornou HTTP ${xhr.status}.`));
+    };
+
+    xhr.send(form);
+  });
+}
+
+document.getElementById("uploadDashboardCloudinary")?.addEventListener("click",async()=>{
+  if(!requireDirector())return;
+  const file=dashboardCloudinaryFile;
+  if(!file){
+    alert("Primeiro escolha uma foto ou vídeo da galeria.");
+    return;
+  }
+
+  const button=document.getElementById("uploadDashboardCloudinary");
+  const input=document.getElementById("dashboardCloudinaryInput");
+
+  try{
+    button.disabled=true;
+    button.textContent="☁️ Enviando...";
+    setDashboardUploadProgress(0,"Preparando upload...");
+
+    const uploaded=await uploadDashboardFileToCloudinary(file);
+    setDashboardUploadProgress(100,"Upload concluído. Publicando no Dashboard...");
+
+    const isVideo=
+      uploaded.resource_type==="video" ||
+      file.type.startsWith("video/");
+
+    markWriting();
+    await setDoc(doc(db,"settings","dashboard"),{
+      mediaType:isVideo?"video/remote":"image/remote",
+      mediaData:"",
+      mediaUrl:uploaded.secure_url,
+      urlMode:isVideo?"video":"image",
+      cloudinaryPublicId:uploaded.public_id||"",
+      cloudinaryResourceType:uploaded.resource_type||"",
+      originalFileName:file.name||"",
+      updatedAt:serverTimestamp()
+    },{merge:true});
+
+    const urlInput=document.getElementById("dashboardMediaUrl");
+    const typeSelect=document.getElementById("dashboardMediaUrlType");
+    if(urlInput)urlInput.value=uploaded.secure_url;
+    if(typeSelect)typeSelect.value=isVideo?"video":"image";
+
+    toast("Mídia enviada e publicada no Dashboard.");
+    setDashboardUploadProgress(100,"✅ Publicado no Dashboard para todos os usuários.");
+
+    dashboardCloudinaryFile=null;
+    if(input)input.value="";
+    const info=document.getElementById("dashboardCloudinaryFileInfo");
+    if(info)info.textContent="Nenhum arquivo selecionado.";
+  }catch(err){
+    console.error("Cloudinary Dashboard:",err);
+    setDashboardUploadProgress(0,`❌ ${err?.message||"Falha no upload."}`);
+    toast("Não foi possível enviar a mídia.");
+  }finally{
+    button.disabled=!dashboardCloudinaryFile;
+    button.textContent="☁️ Enviar e publicar no Dashboard";
+  }
+});
+
+
 document.getElementById('dashboardMediaInput').addEventListener('change', async e=>{
   if(!requireDirector()){ e.target.value=''; return; }
   const file=e.target.files?.[0];
