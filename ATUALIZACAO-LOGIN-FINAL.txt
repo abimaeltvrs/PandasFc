@@ -1,0 +1,23 @@
+PANDAS FC - LOGIN FINAL
+
+Alterações:
+- app.js atualizado para usar a nova API Key que foi validada no teste isolado.
+- index.html atualizado para app.js?v=28 e styles.css?v=28.
+- sw.js atualizado para cache pandas-fc-v28-auth-firebase-key.
+- OneSignal / Push mantidos sem alteração.
+- Perfis mantidos:
+  DIRETORIA:
+    abimaeltablet@gmail.com
+    marcelo.vst@hotmail.com
+    marcioviniciustabosa@gmail.com
+  JOGADOR:
+    demais usuários autenticados.
+
+PUBLICAÇÃO:
+1. Substitua no GitHub todos os arquivos do projeto pelos deste pacote.
+2. Faça Commit changes.
+3. Feche completamente o PANDAS FC e o Chrome no celular.
+4. Abra novamente o PANDAS FC.
+5. Como a conta abimaeltablet@gmail.com já foi criada no teste isolado,
+   use ENTRAR com a mesma senha usada naquele teste.
+6. Depois verificaremos DIRETORIA e permissões.
