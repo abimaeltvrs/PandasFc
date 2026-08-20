@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Teste Firestore - PANDAS FC</title>
+  <style>
+    body{font-family:Arial,sans-serif;background:#061829;color:#fff;margin:0;padding:22px}
+    .card{max-width:620px;margin:24px auto;background:#0b2740;border:1px solid #1e6f9f;border-radius:16px;padding:20px}
+    h1{margin:0 0 8px;font-size:25px}
+    p{color:#b9d0df}
+    label{display:block;margin-top:14px;font-weight:700}
+    input{width:100%;box-sizing:border-box;padding:12px;margin-top:6px;border-radius:9px;border:1px solid #5f8dab;font-size:16px}
+    button{width:100%;padding:13px;margin-top:14px;border:0;border-radius:9px;font-size:16px;font-weight:700;cursor:pointer}
+    .primary{background:#1189cf;color:#fff}
+    .secondary{background:#e8edf2;color:#102030}
+    pre{white-space:pre-wrap;word-break:break-word;background:#04111d;padding:13px;border-radius:10px;min-height:160px;line-height:1.35}
+    .ok{color:#77e79b}.err{color:#ff9189}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🐼 Teste isolado Firestore</h1>
+    <p>Testa Firebase Auth + conexão/leitura/gravação no Firestore. Não usa OneSignal, PWA nem PANDAS MUSIC.</p>
+
+    <label>E-mail</label>
+    <input id="email" type="email" value="abimaeltablet@gmail.com">
+
+    <label>Senha</label>
+    <input id="password" type="password" placeholder="Senha da conta">
+
+    <button class="primary" id="runBtn">🧪 Executar teste completo</button>
+    <button class="secondary" id="copyBtn">📋 Copiar resultado</button>
+
+    <h3>Resultado</h3>
+    <pre id="out">Aguardando teste...</pre>
+  </div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  signOut
+} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+
+import {
+  getFirestore,
+  collection,
+  getDocs,
+  doc,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD68eZtjE-tsweX6evcgSWJjaIznfApSdI",
+  authDomain: "panda-fc-449f7.firebaseapp.com",
+  projectId: "panda-fc-449f7",
+  storageBucket: "panda-fc-449f7.firebasestorage.app",
+  messagingSenderId: "854268170585",
+  appId: "1:854268170585:web:1f1cadb971677f59a97c48",
+  measurementId: "G-GF5664G8HQ"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const out = document.getElementById("out");
+
+const lines=[];
+function write(label,value,kind=""){
+  let text;
+  if(typeof value==="string") text=value;
+  else {
+    try{text=JSON.stringify(value,null,2)}catch{text=String(value)}
+  }
+  lines.push(`${label}: ${text}`);
+  out.textContent=lines.join("\n\n");
+  if(kind) out.className=kind;
+}
+function errObj(err){
+  return {
+    name: err?.name || null,
+    code: err?.code || null,
+    message: err?.message || String(err),
+    stack: err?.stack || null
+  };
+}
+
+async function run(){
+  lines.length=0;
+  out.className="";
+  out.textContent="Executando...";
+
+  write("Data/hora",new Date().toString());
+  write("URL",location.href);
+  write("Online",navigator.onLine);
+  write("Project ID",firebaseConfig.projectId);
+
+  const email=document.getElementById("email").value.trim();
+  const password=document.getElementById("password").value;
+
+  if(!email || !password){
+    write("RESULTADO","❌ Informe e-mail e senha.","err");
+    return;
+  }
+
+  // 1. AUTH
+  try{
+    write("1. Firebase Auth","INICIANDO");
+    const cred=await signInWithEmailAndPassword(auth,email,password);
+    write("1. Firebase Auth","✅ LOGIN OK","ok");
+    write("Usuário",{
+      uid:cred.user.uid,
+      email:cred.user.email,
+      emailVerified:cred.user.emailVerified
+    });
+  }catch(err){
+    write("1. Firebase Auth ERRO",errObj(err),"err");
+    write("RESULTADO","❌ Parou no Authentication.","err");
+    return;
+  }
+
+  // 2. Leitura simples de documento
+  try{
+    write("2. Firestore getDoc settings/music","INICIANDO");
+    const snap=await getDoc(doc(db,"settings","music"));
+    write("2. Firestore getDoc settings/music","✅ OK","ok");
+    write("settings/music existe",snap.exists());
+    if(snap.exists()){
+      write("settings/music dados",snap.data());
+    }
+  }catch(err){
+    write("2. Firestore getDoc ERRO",errObj(err),"err");
+  }
+
+  // 3. Leitura de coleção conhecida
+  try{
+    write("3. Firestore getDocs players","INICIANDO");
+    const snap=await getDocs(collection(db,"players"));
+    write("3. Firestore getDocs players","✅ OK","ok");
+    write("Quantidade de jogadores",snap.size);
+  }catch(err){
+    write("3. Firestore getDocs players ERRO",errObj(err),"err");
+  }
+
+  // 4. Gravação temporária
+  const testRef=doc(db,"diagnostics","firestore-test-"+auth.currentUser.uid);
+  try{
+    write("4. Firestore setDoc temporário","INICIANDO");
+    await setDoc(testRef,{
+      source:"teste-firestore.html",
+      email:auth.currentUser.email,
+      createdAt:serverTimestamp()
+    });
+    write("4. Firestore setDoc temporário","✅ OK","ok");
+
+    try{
+      await deleteDoc(testRef);
+      write("5. Remover documento temporário","✅ OK","ok");
+    }catch(err){
+      write("5. Remover documento temporário ERRO",errObj(err),"err");
+    }
+  }catch(err){
+    write("4. Firestore setDoc ERRO",errObj(err),"err");
+  }
+
+  write("RESULTADO","Fim do teste. Copie TODO o resultado e envie.");
+
+  try{ await signOut(auth); }catch{}
+}
+
+document.getElementById("runBtn").addEventListener("click",run);
+document.getElementById("copyBtn").addEventListener("click",async()=>{
+  try{
+    await navigator.clipboard.writeText(out.textContent);
+    alert("Resultado copiado.");
+  }catch{
+    alert("Não foi possível copiar automaticamente. Selecione o texto manualmente.");
+  }
+});
+</script>
+</body>
+</html>
