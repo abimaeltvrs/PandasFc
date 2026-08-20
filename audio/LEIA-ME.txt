@@ -1,0 +1,24 @@
+PANDAS MUSIC - ÁUDIOS GRATUITOS VIA GITHUB
+
+Coloque seus arquivos de áudio nesta pasta no GitHub.
+
+Exemplos:
+audio/aviso-treino.mp3
+audio/patrocinador.mp3
+audio/hino-pandas.ogg
+
+Depois, no PANDAS FC:
+DIRETORIA > Música > Áudios próprios / avisos
+
+Cadastre:
+Nome: Aviso do treino
+Arquivo / URL: audio/aviso-treino.mp3
+
+Formatos recomendados:
+- MP3
+- M4A/AAC (compatibilidade depende do navegador)
+- OGG
+
+IMPORTANTE:
+Arquivos grandes deixam o repositório pesado.
+Para avisos internos, prefira MP3 comprimido.

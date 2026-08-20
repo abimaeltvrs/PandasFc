@@ -1,4 +1,4 @@
-const CACHE = "pandas-fc-v29-lineup-drag";
+const CACHE = "pandas-fc-v30-pandas-music";
 
 const CORE = [
   "./",

@@ -9,7 +9,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" href="./icon-192.png" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
-  <link rel="stylesheet" href="./styles.css?v=29" />
+  <link rel="stylesheet" href="./styles.css?v=30" />
   <title>PANDAS FC</title>
 
   <!-- OneSignal Web Push - usa o MESMO service worker do PWA -->
@@ -84,6 +84,28 @@
       <span id="syncStatus" class="sync-status">☁️ Conectando...</span>
       <button id="installBtn" class="install-btn">📲 Instalar aplicativo</button>
     </div>
+
+    <div id="musicBar" class="music-bar">
+      <div class="music-video-wrap">
+        <div id="youtubeMusicPlayer"></div>
+        <div id="customAudioVisual" class="custom-audio-visual hidden">📢</div>
+      </div>
+
+      <div class="music-info">
+        <strong id="musicNowTitle">🎵 PANDAS MUSIC</strong>
+        <span id="musicNowSubtitle">Aguardando playlist da DIRETORIA</span>
+      </div>
+
+      <div class="music-controls">
+        <button id="musicPrevBtn" type="button" title="Anterior">⏮</button>
+        <button id="musicPlayBtn" type="button" class="music-play" title="Play / Pause">▶</button>
+        <button id="musicNextBtn" type="button" title="Próxima">⏭</button>
+        <label class="music-volume" title="Volume">
+          🔊
+          <input id="musicVolume" type="range" min="0" max="100" value="65">
+        </label>
+      </div>
+    </div>
   </header>
 
   <div class="layout">
@@ -96,6 +118,7 @@
       <button class="nav-btn" data-page="agenda">📅 Agenda</button>
       <button class="nav-btn" data-page="estatisticas">📊 Estatísticas</button>
       <button class="nav-btn" data-page="artilharia">🏆 Artilharia</button>
+      <button class="nav-btn admin-only" data-page="musica">🎵 Música</button>
       <button class="nav-btn" data-page="config">⚙️ Configurações</button>
     </aside>
 
@@ -267,6 +290,67 @@
         <div id="scorersList" class="card list"></div>
       </section>
 
+
+      <section id="musica" class="page">
+        <div class="page-header">
+          <div>
+            <h2>🎵 PANDAS MUSIC</h2>
+            <p>Configuração de música e avisos internos — somente DIRETORIA.</p>
+          </div>
+        </div>
+
+        <div class="music-admin-grid">
+          <div class="card">
+            <h3>▶️ Playlist do YouTube</h3>
+            <p class="muted">
+              Cole um link de playlist do YouTube ou YouTube Music. A playlist escolhida será a mesma para todos os usuários.
+            </p>
+            <label class="music-field">Link da playlist
+              <input id="musicPlaylistUrl" type="url"
+                placeholder="https://www.youtube.com/playlist?list=..." />
+            </label>
+            <div class="form-actions music-admin-actions">
+              <button id="saveMusicPlaylist" class="primary" type="button">Salvar playlist</button>
+              <button id="clearMusicPlaylist" class="danger" type="button">Remover playlist</button>
+            </div>
+            <small id="musicPlaylistStatus" class="muted"></small>
+          </div>
+
+          <div class="card">
+            <h3>📢 Áudios próprios / avisos</h3>
+            <p class="muted">
+              Para manter o projeto gratuito, envie o MP3/M4A/OGG manualmente para a pasta <strong>audio/</strong> no GitHub
+              e cadastre abaixo o caminho ou URL. Ex.: <strong>audio/aviso-patrocinador.mp3</strong>.
+            </p>
+
+            <label class="music-field">Nome do áudio
+              <input id="musicAudioName" placeholder="Ex.: Aviso do patrocinador" />
+            </label>
+            <label class="music-field">Arquivo / URL
+              <input id="musicAudioUrl" placeholder="audio/aviso-patrocinador.mp3 ou https://..." />
+            </label>
+
+            <div class="form-actions music-admin-actions">
+              <button id="addMusicAudio" class="primary" type="button">➕ Adicionar áudio</button>
+            </div>
+
+            <div id="musicAudioList" class="music-audio-list"></div>
+          </div>
+        </div>
+
+        <div class="card music-help-card">
+          <h3>ℹ️ Como funciona</h3>
+          <p>
+            Todos os usuários podem controlar <strong>Play/Pause, Anterior, Próxima e Volume</strong> no mini player do cabeçalho.
+            Somente a DIRETORIA vê esta aba e consegue trocar a playlist ou cadastrar/remover avisos.
+          </p>
+          <p>
+            O botão <strong>📢 Tocar para todos</strong> publica um aviso no Firebase. Usuários que estiverem com o PANDAS FC aberto
+            receberão o aviso no player e, ao terminar, a playlist volta a tocar quando o navegador permitir.
+          </p>
+        </div>
+      </section>
+
       <section id="config" class="page">
         <div class="page-header">
           <div><h2>⚙️ Configurações</h2><p>Personalização e instalação.</p></div>
@@ -349,6 +433,6 @@
   </div>
 
   <div id="toast" class="toast"></div>
-  <script type="module" src="./app.js?v=29"></script>
+  <script type="module" src="./app.js?v=30"></script>
 </body>
 </html>

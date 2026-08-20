@@ -100,6 +100,12 @@ const state = {
   teamLogo: "",
   selectedLineup: [],
   lineupPositions: {},
+  music: {
+    youtubePlaylistUrl: "",
+    youtubePlaylistId: "",
+    customAudios: [],
+    announcement: null
+  },
   dashboardMedia: {
     type: "",
     data: "",
@@ -204,6 +210,19 @@ function connectRealtime(){
     firebaseReady = true;
     setSyncStatus("☁️ Sincronizado","ok");
     renderLineup();
+  }, err=>syncError(err));
+
+  onSnapshot(doc(db,"settings","music"), snap=>{
+    const d=snap.exists()?snap.data():{};
+    state.music={
+      youtubePlaylistUrl:d.youtubePlaylistUrl||"",
+      youtubePlaylistId:d.youtubePlaylistId||"",
+      customAudios:Array.isArray(d.customAudios)?d.customAudios:[],
+      announcement:d.announcement||null
+    };
+    renderMusicAdmin();
+    applyMusicConfiguration();
+    handleRemoteAnnouncement(state.music.announcement);
   }, err=>syncError(err));
 }
 
@@ -1900,7 +1919,542 @@ function friendlyAuthError(err){
   return map[code] || err?.message || "Não foi possível concluir a operação.";
 }
 function showRegister(show){
-  document.getElementById("loginForm")?.classList.toggle("hidden",show);
+  
+/* =========================================================
+   PANDAS MUSIC
+   YouTube + avisos hospedados no GitHub
+   ========================================================= */
+
+let youtubeApiPromise=null;
+let youtubeMusicPlayer=null;
+let youtubeMusicReady=false;
+let youtubeLoadedPlaylistId="";
+let customAnnouncementAudio=null;
+let currentAnnouncementId="";
+let resumeYoutubeAfterAnnouncement=false;
+let musicUserStarted=false;
+let lastKnownYoutubeState=-1;
+
+function extractYoutubePlaylistId(value=""){
+  const raw=String(value||"").trim();
+  if(!raw)return "";
+
+  try{
+    const url=new URL(raw,location.href);
+    const list=url.searchParams.get("list");
+    if(list)return list.trim();
+  }catch{}
+
+  // Também aceita colar somente o ID da playlist.
+  if(/^[A-Za-z0-9_-]{10,}$/.test(raw) && !raw.includes("/")) return raw;
+  return "";
+}
+
+function normalizeAudioUrl(value=""){
+  const raw=String(value||"").trim();
+  if(!raw)return "";
+  try{
+    return new URL(raw,location.href).href;
+  }catch{
+    return raw;
+  }
+}
+
+function loadYoutubeIframeAPI(){
+  if(window.YT?.Player)return Promise.resolve(window.YT);
+  if(youtubeApiPromise)return youtubeApiPromise;
+
+  youtubeApiPromise=new Promise((resolve,reject)=>{
+    const previous=window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady=()=>{
+      try{ previous?.(); }catch{}
+      resolve(window.YT);
+    };
+
+    if(!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')){
+      const script=document.createElement("script");
+      script.src="https://www.youtube.com/iframe_api";
+      script.async=true;
+      script.onerror=()=>reject(new Error("Não foi possível carregar o player do YouTube."));
+      document.head.appendChild(script);
+    }
+
+    let checks=0;
+    const timer=setInterval(()=>{
+      if(window.YT?.Player){
+        clearInterval(timer);
+        resolve(window.YT);
+      }else if(++checks>100){
+        clearInterval(timer);
+        reject(new Error("Tempo excedido ao carregar o YouTube."));
+      }
+    },100);
+  });
+
+  return youtubeApiPromise;
+}
+
+async function ensureYoutubeMusicPlayer(){
+  if(youtubeMusicPlayer)return youtubeMusicPlayer;
+
+  const playlistId=state.music.youtubePlaylistId||extractYoutubePlaylistId(state.music.youtubePlaylistUrl);
+  if(!playlistId)return null;
+
+  const YT=await loadYoutubeIframeAPI();
+
+  youtubeMusicPlayer=new YT.Player("youtubeMusicPlayer",{
+    width:"160",
+    height:"90",
+    playerVars:{
+      playsinline:1,
+      enablejsapi:1,
+      origin:location.origin,
+      rel:0,
+      controls:0,
+      listType:"playlist",
+      list:playlistId
+    },
+    events:{
+      onReady:event=>{
+        youtubeMusicReady=true;
+        youtubeLoadedPlaylistId=playlistId;
+        try{
+          event.target.cuePlaylist({
+            listType:"playlist",
+            list:playlistId,
+            index:0,
+            startSeconds:0
+          });
+          event.target.setLoop(true);
+          event.target.setVolume(Number(document.getElementById("musicVolume")?.value||65));
+        }catch(err){console.warn("PANDAS MUSIC ready:",err);}
+        updateMusicPlayerUI();
+      },
+      onStateChange:event=>{
+        lastKnownYoutubeState=event.data;
+        updateMusicPlayerUI();
+      },
+      onError:event=>{
+        console.warn("YouTube player error",event.data);
+        setMusicSubtitle("Não foi possível reproduzir esta playlist.");
+      }
+    }
+  });
+
+  return youtubeMusicPlayer;
+}
+
+function setMusicSubtitle(text){
+  const el=document.getElementById("musicNowSubtitle");
+  if(el)el.textContent=text;
+}
+
+function setMusicTitle(text){
+  const el=document.getElementById("musicNowTitle");
+  if(el)el.textContent=text;
+}
+
+function isYoutubePlaying(){
+  return !!window.YT && lastKnownYoutubeState===window.YT.PlayerState.PLAYING;
+}
+
+function isAnnouncementPlaying(){
+  return !!customAnnouncementAudio && !customAnnouncementAudio.paused && !customAnnouncementAudio.ended;
+}
+
+function updateMusicPlayerUI(){
+  const playBtn=document.getElementById("musicPlayBtn");
+  const title=document.getElementById("musicNowTitle");
+  const subtitle=document.getElementById("musicNowSubtitle");
+  const visual=document.getElementById("customAudioVisual");
+
+  if(customAnnouncementAudio){
+    visual?.classList.remove("hidden");
+    if(title)title.textContent=`📢 ${customAnnouncementAudio.dataset?.name||"Aviso interno"}`;
+    if(subtitle)subtitle.textContent=isAnnouncementPlaying()?"Aviso em reprodução":"Aviso pausado";
+    if(playBtn)playBtn.textContent=isAnnouncementPlaying()?"⏸":"▶";
+    return;
+  }
+
+  visual?.classList.add("hidden");
+  if(title)title.textContent="🎵 PANDAS MUSIC";
+
+  if(!state.music.youtubePlaylistId){
+    if(subtitle)subtitle.textContent="Aguardando playlist da DIRETORIA";
+    if(playBtn)playBtn.textContent="▶";
+    return;
+  }
+
+  if(subtitle){
+    subtitle.textContent=isYoutubePlaying()
+      ?"Playlist do PANDAS FC • tocando"
+      :"Playlist do PANDAS FC • toque ▶ para ouvir";
+  }
+  if(playBtn)playBtn.textContent=isYoutubePlaying()?"⏸":"▶";
+}
+
+async function applyMusicConfiguration(){
+  updateMusicPlayerUI();
+
+  const playlistId=state.music.youtubePlaylistId||extractYoutubePlaylistId(state.music.youtubePlaylistUrl);
+
+  if(!playlistId){
+    if(youtubeMusicPlayer && youtubeMusicReady){
+      try{youtubeMusicPlayer.stopVideo();}catch{}
+    }
+    youtubeLoadedPlaylistId="";
+    return;
+  }
+
+  try{
+    const player=await ensureYoutubeMusicPlayer();
+    if(!player)return;
+
+    if(youtubeMusicReady && playlistId!==youtubeLoadedPlaylistId){
+      youtubeLoadedPlaylistId=playlistId;
+      player.cuePlaylist({
+        listType:"playlist",
+        list:playlistId,
+        index:0,
+        startSeconds:0
+      });
+      player.setLoop(true);
+    }
+  }catch(err){
+    console.warn(err);
+    setMusicSubtitle("Falha ao carregar playlist.");
+  }
+}
+
+async function playYoutubeMusic(){
+  if(customAnnouncementAudio){
+    try{await customAnnouncementAudio.play();}catch{}
+    updateMusicPlayerUI();
+    return;
+  }
+
+  try{
+    const player=await ensureYoutubeMusicPlayer();
+    if(!player){
+      toast("A DIRETORIA ainda não configurou uma playlist.");
+      return;
+    }
+
+    musicUserStarted=true;
+    player.unMute?.();
+    player.setVolume?.(Number(document.getElementById("musicVolume")?.value||65));
+
+    if(youtubeMusicReady){
+      player.playVideo();
+    }
+  }catch(err){
+    console.warn(err);
+    toast("Não foi possível iniciar a música.");
+  }
+}
+
+function pauseMusic(){
+  if(customAnnouncementAudio){
+    customAnnouncementAudio.pause();
+  }else{
+    try{youtubeMusicPlayer?.pauseVideo?.();}catch{}
+  }
+  updateMusicPlayerUI();
+}
+
+async function toggleMusicPlayback(){
+  if(isAnnouncementPlaying() || isYoutubePlaying()){
+    pauseMusic();
+  }else{
+    await playYoutubeMusic();
+  }
+}
+
+function previousMusic(){
+  if(customAnnouncementAudio){
+    finishAnnouncement(true);
+    return;
+  }
+  try{
+    musicUserStarted=true;
+    youtubeMusicPlayer?.previousVideo?.();
+  }catch{}
+}
+
+function nextMusic(){
+  if(customAnnouncementAudio){
+    finishAnnouncement(true);
+    return;
+  }
+  try{
+    musicUserStarted=true;
+    youtubeMusicPlayer?.nextVideo?.();
+  }catch{}
+}
+
+function setMusicVolume(value){
+  const volume=Math.max(0,Math.min(100,Number(value)||0));
+  try{youtubeMusicPlayer?.setVolume?.(volume);}catch{}
+  if(customAnnouncementAudio)customAnnouncementAudio.volume=volume/100;
+  localStorage.setItem("pandasMusicVolume",String(volume));
+}
+
+function renderMusicAdmin(){
+  const playlistInput=document.getElementById("musicPlaylistUrl");
+  const status=document.getElementById("musicPlaylistStatus");
+  const list=document.getElementById("musicAudioList");
+
+  if(playlistInput && document.activeElement!==playlistInput){
+    playlistInput.value=state.music.youtubePlaylistUrl||"";
+  }
+
+  if(status){
+    status.textContent=state.music.youtubePlaylistId
+      ? `Playlist ativa: ${state.music.youtubePlaylistId}`
+      : "Nenhuma playlist configurada.";
+  }
+
+  if(list){
+    const audios=state.music.customAudios||[];
+    list.innerHTML=audios.length?audios.map(audio=>`
+      <div class="music-audio-item">
+        <div>
+          <strong>📢 ${esc(audio.name||"Áudio")}</strong>
+          <small>${esc(audio.url||"")}</small>
+        </div>
+        <div class="actions">
+          <button type="button" onclick="previewMusicAudio('${audio.id}')">▶️ Testar</button>
+          <button type="button" onclick="broadcastMusicAudio('${audio.id}')">📢 Tocar para todos</button>
+          <button type="button" onclick="removeMusicAudio('${audio.id}')">🗑️ Remover</button>
+        </div>
+      </div>
+    `).join(""):'<p class="muted">Nenhum áudio próprio cadastrado.</p>';
+  }
+}
+
+async function saveMusicPlaylist(){
+  if(!requireDirector())return;
+
+  const input=document.getElementById("musicPlaylistUrl");
+  const url=String(input?.value||"").trim();
+  const playlistId=extractYoutubePlaylistId(url);
+
+  if(!playlistId){
+    toast("Cole um link válido de playlist do YouTube/YouTube Music.");
+    return;
+  }
+
+  try{
+    markWriting();
+    await setDoc(doc(db,"settings","music"),{
+      youtubePlaylistUrl:url,
+      youtubePlaylistId:playlistId,
+      updatedAt:serverTimestamp()
+    },{merge:true});
+    toast("Playlist salva.");
+  }catch(err){syncError(err);}
+}
+
+async function clearMusicPlaylist(){
+  if(!requireDirector())return;
+  if(!confirm("Remover a playlist atual do PANDAS MUSIC?"))return;
+
+  try{
+    markWriting();
+    await setDoc(doc(db,"settings","music"),{
+      youtubePlaylistUrl:"",
+      youtubePlaylistId:"",
+      updatedAt:serverTimestamp()
+    },{merge:true});
+    toast("Playlist removida.");
+  }catch(err){syncError(err);}
+}
+
+async function addMusicAudio(){
+  if(!requireDirector())return;
+
+  const name=String(document.getElementById("musicAudioName")?.value||"").trim();
+  const rawUrl=String(document.getElementById("musicAudioUrl")?.value||"").trim();
+
+  if(!name || !rawUrl){
+    toast("Informe o nome e o caminho/URL do áudio.");
+    return;
+  }
+
+  const audio={
+    id:uid(),
+    name,
+    url:rawUrl
+  };
+
+  const audios=[...(state.music.customAudios||[]),audio];
+
+  try{
+    markWriting();
+    await setDoc(doc(db,"settings","music"),{
+      customAudios:audios,
+      updatedAt:serverTimestamp()
+    },{merge:true});
+    document.getElementById("musicAudioName").value="";
+    document.getElementById("musicAudioUrl").value="";
+    toast("Áudio cadastrado.");
+  }catch(err){syncError(err);}
+}
+
+async function removeMusicAudio(id){
+  if(!requireDirector())return;
+  const audio=state.music.customAudios.find(a=>a.id===id);
+  if(!audio)return;
+  if(!confirm(`Remover "${audio.name}" da lista?`))return;
+
+  try{
+    markWriting();
+    await setDoc(doc(db,"settings","music"),{
+      customAudios:state.music.customAudios.filter(a=>a.id!==id),
+      updatedAt:serverTimestamp()
+    },{merge:true});
+  }catch(err){syncError(err);}
+}
+
+function createAnnouncementAudio(audio){
+  const el=new Audio(normalizeAudioUrl(audio.url));
+  el.preload="auto";
+  el.dataset.name=audio.name||"Aviso interno";
+  el.volume=Number(document.getElementById("musicVolume")?.value||65)/100;
+  return el;
+}
+
+function previewMusicAudio(id){
+  if(!requireDirector())return;
+  const audio=state.music.customAudios.find(a=>a.id===id);
+  if(!audio)return;
+
+  stopAnnouncementAudio();
+  const preview=createAnnouncementAudio(audio);
+  customAnnouncementAudio=preview;
+  resumeYoutubeAfterAnnouncement=isYoutubePlaying();
+
+  try{youtubeMusicPlayer?.pauseVideo?.();}catch{}
+
+  preview.onended=()=>finishAnnouncement(false);
+  preview.onerror=()=>{
+    toast("Não foi possível abrir esse áudio. Confira o caminho no GitHub.");
+    finishAnnouncement(false);
+  };
+
+  preview.play().then(updateMusicPlayerUI).catch(()=>{
+    toast("Toque no player para iniciar o áudio.");
+    updateMusicPlayerUI();
+  });
+}
+
+async function broadcastMusicAudio(id){
+  if(!requireDirector())return;
+  const audio=state.music.customAudios.find(a=>a.id===id);
+  if(!audio)return;
+
+  const announcement={
+    id:`${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
+    audioId:audio.id,
+    name:audio.name,
+    url:audio.url,
+    issuedAt:Date.now()
+  };
+
+  try{
+    markWriting();
+    await setDoc(doc(db,"settings","music"),{
+      announcement,
+      updatedAt:serverTimestamp()
+    },{merge:true});
+    toast("Aviso enviado para os players abertos.");
+  }catch(err){syncError(err);}
+}
+
+function stopAnnouncementAudio(){
+  if(customAnnouncementAudio){
+    try{
+      customAnnouncementAudio.pause();
+      customAnnouncementAudio.src="";
+    }catch{}
+    customAnnouncementAudio=null;
+  }
+}
+
+function finishAnnouncement(forceResume=false){
+  const shouldResume=forceResume||resumeYoutubeAfterAnnouncement||musicUserStarted;
+  stopAnnouncementAudio();
+  resumeYoutubeAfterAnnouncement=false;
+  updateMusicPlayerUI();
+
+  if(shouldResume && state.music.youtubePlaylistId){
+    setTimeout(()=>playYoutubeMusic(),180);
+  }
+}
+
+function handleRemoteAnnouncement(announcement){
+  if(!announcement?.id || announcement.id===currentAnnouncementId)return;
+  currentAnnouncementId=announcement.id;
+
+  const audio={
+    name:announcement.name||"Aviso interno",
+    url:announcement.url||""
+  };
+  if(!audio.url)return;
+
+  resumeYoutubeAfterAnnouncement=isYoutubePlaying();
+  try{youtubeMusicPlayer?.pauseVideo?.();}catch{}
+
+  stopAnnouncementAudio();
+  const player=createAnnouncementAudio(audio);
+  customAnnouncementAudio=player;
+
+  player.onended=()=>finishAnnouncement(false);
+  player.onerror=()=>{
+    console.warn("Falha ao reproduzir aviso:",audio.url);
+    finishAnnouncement(false);
+  };
+
+  player.play().then(()=>{
+    updateMusicPlayerUI();
+  }).catch(()=>{
+    // Autoplay com som pode ser bloqueado pelo navegador.
+    setMusicTitle(`📢 ${audio.name}`);
+    setMusicSubtitle("Aviso recebido • toque ▶ para reproduzir");
+    updateMusicPlayerUI();
+  });
+}
+
+// Controles do mini player.
+document.getElementById("musicPlayBtn")?.addEventListener("click",toggleMusicPlayback);
+document.getElementById("musicPrevBtn")?.addEventListener("click",previousMusic);
+document.getElementById("musicNextBtn")?.addEventListener("click",nextMusic);
+
+const savedMusicVolume=Number(localStorage.getItem("pandasMusicVolume"));
+if(Number.isFinite(savedMusicVolume)){
+  const volumeInput=document.getElementById("musicVolume");
+  if(volumeInput)volumeInput.value=String(Math.max(0,Math.min(100,savedMusicVolume)));
+}
+document.getElementById("musicVolume")?.addEventListener("input",event=>setMusicVolume(event.target.value));
+
+document.getElementById("saveMusicPlaylist")?.addEventListener("click",saveMusicPlaylist);
+document.getElementById("clearMusicPlaylist")?.addEventListener("click",clearMusicPlaylist);
+document.getElementById("addMusicAudio")?.addEventListener("click",addMusicAudio);
+
+// Depois da primeira interação real do usuário, tentamos iniciar a playlist.
+// Navegadores podem bloquear autoplay com som antes dessa interação.
+document.addEventListener("pointerdown",()=>{
+  if(!musicUserStarted && state.music.youtubePlaylistId && !customAnnouncementAudio){
+    musicUserStarted=true;
+    playYoutubeMusic();
+  }
+},{once:true});
+
+window.previewMusicAudio=previewMusicAudio;
+window.broadcastMusicAudio=broadcastMusicAudio;
+window.removeMusicAudio=removeMusicAudio;
+
+document.getElementById("loginForm")?.classList.toggle("hidden",show);
   document.getElementById("registerForm")?.classList.toggle("hidden",!show);
   setAuthMessage("");
 }
@@ -1962,10 +2516,13 @@ function applyRoleUI(){
   document.getElementById("sessionUserName").textContent=currentUser?.displayName || currentUser?.email?.split("@")[0] || "Usuário";
   document.getElementById("sessionRole").textContent=currentRole;
   document.getElementById("userSession").classList.remove("hidden");
-  if(!director && document.getElementById("cadastro")?.classList.contains("active")){
+  if(!director && (
+      document.getElementById("cadastro")?.classList.contains("active") ||
+      document.getElementById("musica")?.classList.contains("active")
+    )){
     document.querySelector('[data-page="dashboard"]')?.click();
   }
-  renderPlayers(); renderLineup(); renderEvents(); renderMatches(); renderScorers();
+  renderPlayers(); renderLineup(); renderEvents(); renderMatches(); renderScorers(); renderMusicAdmin(); updateMusicPlayerUI();
 }
 
 onAuthStateChanged(auth,async user=>{
@@ -2000,4 +2557,4 @@ window.generatePoster=generatePoster;
 window.setScore=setScore;
 window.setGoals=setGoals;
 
-renderPlayers(); renderLineup(); renderEvents(); renderMatches(); renderStats(); renderScorers(); renderCalendar(); renderLogo(); renderDashboardMedia();
+renderPlayers(); renderLineup(); renderEvents(); renderMatches(); renderStats(); renderScorers(); renderCalendar(); renderLogo(); renderDashboardMedia(); renderMusicAdmin(); updateMusicPlayerUI();

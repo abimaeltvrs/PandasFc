@@ -1,0 +1,26 @@
+PANDAS FC — PANDAS MUSIC
+
+NOVO:
+- Aba "Música" visível somente para DIRETORIA.
+- Playlist do YouTube/YouTube Music salva no Firestore.
+- Mini player no cabeçalho para DIRETORIA e JOGADOR.
+- Todos podem: Play/Pause, Anterior, Próxima e Volume.
+- Somente DIRETORIA pode trocar a playlist.
+- Áudios próprios/avisos podem ser cadastrados por caminho ou URL.
+- Para projeto gratuito, coloque MP3/OGG manualmente na pasta audio/ do GitHub.
+- DIRETORIA pode "Testar" um áudio localmente.
+- DIRETORIA pode "Tocar para todos": o aviso é publicado no Firestore e toca nos apps abertos.
+- Ao terminar um aviso, a playlist tenta retornar automaticamente.
+- Navegadores podem bloquear autoplay com som até a primeira interação do usuário.
+
+MANTIDO:
+- Firebase Authentication
+- DIRETORIA/JOGADOR
+- Firestore
+- OneSignal Push
+- Escalação arrastável
+- Agenda e demais funções
+
+PUBLICAÇÃO:
+Substitua os arquivos no GitHub pelos deste ZIP mantendo as pastas.
+Cache atualizado para v30.
