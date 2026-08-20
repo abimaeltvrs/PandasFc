@@ -1046,3 +1046,13 @@ select option{
   line-height:1.45;
   font-family:Consolas,Monaco,monospace;
 }
+
+
+#runNativePushTest{
+  min-width:210px;
+}
+@media(max-width:700px){
+  #runNativePushTest{
+    min-width:0;
+  }
+}

@@ -1334,6 +1334,214 @@ async function runTechnicalPushTest(){
 
 document.getElementById('runTechnicalPushTest')?.addEventListener('click',runTechnicalPushTest);
 
+
+async function runNativePushManagerTest(){
+  const out=document.getElementById('technicalPushOutput');
+  const btn=document.getElementById('runNativePushTest');
+  const lines=[];
+
+  const add=(label,value)=>{
+    const text=typeof value==='string' ? value : JSON.stringify(value,null,2);
+    lines.push(`${label}: ${text}`);
+    if(out) out.textContent=lines.join('\n\n');
+  };
+
+  const addError=(label,err)=>{
+    add(label,{
+      name:err?.name||'Error',
+      message:err?.message||String(err),
+      code:err?.code ?? null,
+      stack:err?.stack||''
+    });
+  };
+
+  if(btn){
+    btn.disabled=true;
+    btn.textContent='⏳ Testando PushManager...';
+  }
+
+  try{
+    add('=== TESTE NATIVO DO PUSHMANAGER ===','');
+    add('Data/hora',new Date().toString());
+    add('Notification.permission',
+      ('Notification' in window)?Notification.permission:'unsupported');
+    add('Secure context',window.isSecureContext);
+    add('Online',navigator.onLine);
+
+    if(!('serviceWorker' in navigator)){
+      add('RESULTADO','❌ Service Worker não suportado');
+      return;
+    }
+
+    const regs=await navigator.serviceWorker.getRegistrations();
+
+    add('Registrations encontradas',regs.map(r=>({
+      scope:r.scope,
+      active:r.active?.scriptURL||null,
+      waiting:r.waiting?.scriptURL||null,
+      installing:r.installing?.scriptURL||null
+    })));
+
+    // Usa especificamente o worker do OneSignal.
+    const reg=
+      regs.find(r=>String(r.scope||'').includes('/PandasFc/push/onesignal/')) ||
+      regs.find(r=>String(
+        r.active?.scriptURL||
+        r.waiting?.scriptURL||
+        r.installing?.scriptURL||
+        ''
+      ).includes('OneSignalSDKWorker.js')) ||
+      null;
+
+    if(!reg){
+      add('RESULTADO','❌ Registration do OneSignal não encontrada');
+      return;
+    }
+
+    add('Worker OneSignal selecionado',{
+      scope:reg.scope,
+      active:reg.active?.scriptURL||null
+    });
+
+    // Estado de permissão do PushManager
+    try{
+      if(typeof reg.pushManager.permissionState==='function'){
+        const state=await reg.pushManager.permissionState({userVisibleOnly:true});
+        add('PushManager.permissionState()',state);
+      }else{
+        add('PushManager.permissionState()','Não disponível neste navegador');
+      }
+    }catch(err){
+      addError('PushManager.permissionState() ERRO',err);
+    }
+
+    // Subscription existente?
+    let existing=null;
+    try{
+      existing=await reg.pushManager.getSubscription();
+      add('PushManager.getSubscription() ANTES',existing?{
+        endpoint:existing.endpoint,
+        expirationTime:existing.expirationTime,
+        hasP256dh:!!existing.getKey('p256dh'),
+        hasAuth:!!existing.getKey('auth')
+      }:'NULL');
+    }catch(err){
+      addError('getSubscription() ERRO',err);
+    }
+
+    // Se houver algo preso, tenta remover para garantir teste limpo.
+    if(existing){
+      try{
+        const unsub=await existing.unsubscribe();
+        add('unsubscribe() da inscrição existente',unsub);
+      }catch(err){
+        addError('unsubscribe() ERRO',err);
+      }
+    }
+
+    /*
+     * TESTE 1:
+     * subscribe nativo sem applicationServerKey.
+     *
+     * Esse teste é propositalmente de baixo nível:
+     * queremos o erro bruto do Chrome/FCM, sem o OneSignal mascarar.
+     */
+    try{
+      add('Teste 1: pushManager.subscribe({userVisibleOnly:true})','INICIANDO');
+      const nativeSub=await reg.pushManager.subscribe({
+        userVisibleOnly:true
+      });
+
+      add('Teste 1: SUCESSO',{
+        endpoint:nativeSub.endpoint,
+        expirationTime:nativeSub.expirationTime,
+        hasP256dh:!!nativeSub.getKey('p256dh'),
+        hasAuth:!!nativeSub.getKey('auth')
+      });
+
+      // Não deixa essa inscrição manual interferir no OneSignal.
+      try{
+        const removed=await nativeSub.unsubscribe();
+        add('Remoção da inscrição manual de teste',removed);
+      }catch(err){
+        addError('Remover inscrição manual ERRO',err);
+      }
+    }catch(err){
+      addError('Teste 1: ERRO BRUTO DO CHROME',err);
+    }
+
+    /*
+     * TESTE 2:
+     * pede ao OneSignal para inscrever novamente logo após o teste nativo.
+     * Assim comparamos o comportamento do navegador com o SDK.
+     */
+    const OneSignal=window.PandasOneSignal;
+    add('OneSignal carregado',!!OneSignal);
+
+    if(OneSignal){
+      try{
+        add('OneSignal ANTES',{
+          permission:OneSignal.Notifications.permission,
+          optedIn:OneSignal.User.PushSubscription.optedIn,
+          id:OneSignal.User.PushSubscription.id||null,
+          token:OneSignal.User.PushSubscription.token?'PRESENTE':null
+        });
+      }catch(err){
+        addError('Ler estado OneSignal ANTES ERRO',err);
+      }
+
+      try{
+        add('Teste 2: OneSignal optIn()','INICIANDO');
+        await OneSignal.User.PushSubscription.optIn();
+        add('Teste 2: OneSignal optIn()','RETORNOU SEM EXCEÇÃO');
+      }catch(err){
+        addError('Teste 2: OneSignal optIn() ERRO',err);
+      }
+
+      await wait(3000);
+
+      try{
+        add('OneSignal DEPOIS',{
+          permission:OneSignal.Notifications.permission,
+          optedIn:OneSignal.User.PushSubscription.optedIn,
+          id:OneSignal.User.PushSubscription.id||null,
+          token:OneSignal.User.PushSubscription.token?'PRESENTE':null
+        });
+      }catch(err){
+        addError('Ler estado OneSignal DEPOIS ERRO',err);
+      }
+    }
+
+    // Estado final do PushManager
+    try{
+      const finalSub=await reg.pushManager.getSubscription();
+      add('PushManager.getSubscription() FINAL',finalSub?{
+        endpoint:finalSub.endpoint,
+        expirationTime:finalSub.expirationTime,
+        hasP256dh:!!finalSub.getKey('p256dh'),
+        hasAuth:!!finalSub.getKey('auth')
+      }:'NULL');
+    }catch(err){
+      addError('getSubscription() FINAL ERRO',err);
+    }
+
+    add('RESULTADO','Fim do teste. Copie TODO o resultado e envie.');
+
+  }catch(err){
+    addError('ERRO GERAL DO TESTE NATIVO',err);
+  }finally{
+    if(btn){
+      btn.disabled=false;
+      btn.textContent='🧬 Testar PushManager direto';
+    }
+  }
+}
+
+document.getElementById('runNativePushTest')?.addEventListener(
+  'click',
+  runNativePushManagerTest
+);
+
 document.getElementById('copyTechnicalPushTest')?.addEventListener('click',async()=>{
   const txt=document.getElementById('technicalPushOutput')?.textContent||'';
   try{
