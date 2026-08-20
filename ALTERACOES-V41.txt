@@ -1,0 +1,38 @@
+PANDAS FC v41 — 4 CORREÇÕES
+
+1. DASHBOARD
+- Mídia centralizada horizontalmente.
+- Ajustes específicos para celular.
+- Imagem, vídeo e YouTube usam a área central do Dashboard.
+
+2. ONLINE
+- Corrigidas regras do Firestore para cada usuário autenticado registrar
+  presence/{uid}.
+- 1 DIRETORIA + 1 JOGADOR em contas diferentes = 2 online.
+- O contador representa usuários autenticados, não quantidade de abas.
+
+3. BATE-PAPO
+- Corrigidas regras para JOGADOR enviar mensagens.
+- Cada usuário pode apagar a própria mensagem.
+- DIRETORIA pode apagar qualquer mensagem e fixar recado.
+- Limite continua 300 caracteres.
+- IMPORTANTE: publicar firestore.rules no Firebase é obrigatório.
+
+4. ESTATÍSTICAS
+- Novo botão "Gerar PDF".
+- PDF contém:
+  • dashboard/resumo estatístico;
+  • jogos, vitórias, empates, derrotas;
+  • gols pró/contra, saldo, aproveitamento;
+  • barras de resultados;
+  • histórico de partidas;
+  • artilharia.
+- PDF é gerado no próprio navegador.
+
+PUBLICAÇÃO
+A) GitHub: substituir pelos arquivos desta versão.
+B) Firebase Console > Firestore > Regras:
+   copiar o conteúdo de firestore.rules e clicar em Publicar.
+
+Sem publicar as regras novas, JOGADOR continuará sem conseguir enviar chat
+e não aparecerá corretamente no contador online.

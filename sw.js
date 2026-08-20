@@ -1,4 +1,4 @@
-const CACHE = "pandas-fc-v40-menu-corrigido";
+const CACHE = "pandas-fc-v41-dashboard-online-chat-pdf";
 
 const CORE = [
   "./",

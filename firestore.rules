@@ -15,8 +15,49 @@ service cloud.firestore {
         ];
     }
 
-    // Qualquer usuário autenticado (JOGADOR ou DIRETORIA) pode visualizar.
-    // Somente a DIRETORIA com e-mail verificado pode criar, editar ou excluir.
+    // PRESENÇA ONLINE
+    // Cada usuário autenticado grava somente a própria presença.
+    match /presence/{uid} {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.uid == request.auth.uid;
+      allow delete: if signedIn()
+        && (request.auth.uid == uid || isDirector());
+    }
+
+    // BATE-PAPO
+    // Jogador e Diretoria podem enviar mensagens com a própria identidade.
+    // Cada usuário pode apagar a própria mensagem; Diretoria pode apagar qualquer.
+    match /chatMessages/{messageId} {
+      allow read: if signedIn();
+
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 300
+        && (
+          (isDirector() && request.resource.data.role == 'DIRETORIA')
+          ||
+          (!isDirector() && request.resource.data.role == 'JOGADOR')
+        );
+
+      allow update: if false;
+
+      allow delete: if signedIn()
+        && (isDirector() || resource.data.uid == request.auth.uid);
+    }
+
+    // Recado fixado do chat: todos leem, somente Diretoria altera.
+    match /settings/chat {
+      allow read: if signedIn();
+      allow create, update, delete: if isDirector();
+    }
+
+    // Demais dados do aplicativo:
+    // qualquer usuário autenticado visualiza;
+    // somente Diretoria altera.
     match /{document=**} {
       allow read: if signedIn();
       allow create, update, delete: if isDirector();

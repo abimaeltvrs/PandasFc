@@ -173,8 +173,16 @@ function fileToDataURL(file){
 
 async function presenceBeat(){
   if(!currentUser)return;
-  try{await setDoc(doc(db,"presence",currentUser.uid),{uid:currentUser.uid,name:displayUserName(),role:roleLabel(),lastSeen:serverTimestamp()},{merge:true});}
-  catch(err){console.warn("presence:",err);}
+  try{
+    await setDoc(doc(db,"presence",currentUser.uid),{
+      uid:currentUser.uid,
+      name:displayUserName(),
+      role:roleLabel(),
+      lastSeen:serverTimestamp()
+    },{merge:true});
+  }catch(err){
+    console.warn("presence:",err);
+  }
 }
 function activeOnlineUsers(){
   const now=Date.now();
@@ -234,7 +242,7 @@ async function sendChat(text){
   const tempId=`local-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
   chatMessages=[...chatMessages,{id:tempId,uid:currentUser.uid,name:displayUserName(),role:roleLabel(),text:clean,createdAt:null,pending:true}].slice(-100);renderChat();
   try{await setDoc(doc(collection(db,"chatMessages")),{uid:currentUser.uid,name:displayUserName(),role:roleLabel(),text:clean,createdAt:serverTimestamp()});setChatRealtimeStatus("🟢 Mensagem enviada","ok");return true;}
-  catch(err){chatMessages=chatMessages.filter(m=>m.id!==tempId);renderChat();console.warn("send chat:",err);setChatRealtimeStatus("🔴 Falha ao enviar mensagem","err");toast("Não foi possível enviar a mensagem.");return false;}
+  catch(err){chatMessages=chatMessages.filter(m=>m.id!==tempId);renderChat();console.warn("send chat:",err);setChatRealtimeStatus("🔴 Falha ao enviar mensagem","err");toast(err?.code==="permission-denied"?"Sem permissão para enviar. Publique as novas regras do Firestore.":"Não foi possível enviar a mensagem.");return false;}
 }
 
 async function removeChat(id){
@@ -1070,6 +1078,260 @@ async function generatePoster(id){
 }
 function loadImage(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src;});}
 function drawContain(ctx,img,x,y,w,h){const r=Math.min(w/img.width,h/img.height),nw=img.width*r,nh=img.height*r;ctx.drawImage(img,x+(w-nw)/2,y+(h-nh)/2,nw,nh);}
+
+
+let jsPdfLoadPromise=null;
+
+function loadJsPdf(){
+  if(window.jspdf?.jsPDF)return Promise.resolve(window.jspdf.jsPDF);
+  if(jsPdfLoadPromise)return jsPdfLoadPromise;
+
+  jsPdfLoadPromise=new Promise((resolve,reject)=>{
+    const script=document.createElement("script");
+    script.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js";
+    script.async=true;
+    script.onload=()=>{
+      if(window.jspdf?.jsPDF)resolve(window.jspdf.jsPDF);
+      else reject(new Error("jsPDF não foi inicializado."));
+    };
+    script.onerror=()=>reject(new Error("Não foi possível carregar o gerador de PDF."));
+    document.head.appendChild(script);
+  });
+
+  return jsPdfLoadPromise;
+}
+
+function calculateStatsData(){
+  const done=state.events.filter(e=>e.goalsFor!==''&&e.goalsAgainst!=='');
+  let wins=0,draws=0,losses=0,gf=0,ga=0;
+
+  done.forEach(e=>{
+    const a=Number(e.goalsFor), b=Number(e.goalsAgainst);
+    gf+=a; ga+=b;
+    if(a>b)wins++;
+    else if(a<b)losses++;
+    else draws++;
+  });
+
+  const points=wins*3+draws;
+  const performance=done.length
+    ? Math.round((points/(done.length*3))*100)
+    : 0;
+
+  return {
+    done,wins,draws,losses,gf,ga,
+    balance:gf-ga,
+    points,
+    performance
+  };
+}
+
+function pdfSafe(value){
+  return String(value??"")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g,"")
+    .replace(/[^\x20-\x7E]/g," ");
+}
+
+async function generateStatisticsPdf(){
+  const button=document.getElementById("generateStatsPdf");
+  const oldText=button?.textContent||"📄 Gerar PDF";
+
+  try{
+    if(button){
+      button.disabled=true;
+      button.textContent="Gerando PDF...";
+    }
+
+    const JsPDF=await loadJsPdf();
+    const pdf=new JsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+    const stats=calculateStatsData();
+
+    const pageW=210;
+    const margin=14;
+    let y=16;
+
+    // Cabeçalho
+    pdf.setFillColor(6,24,41);
+    pdf.rect(0,0,pageW,34,"F");
+    pdf.setTextColor(255,255,255);
+    pdf.setFont("helvetica","bold");
+    pdf.setFontSize(21);
+    pdf.text("PANDAS FC",margin,15);
+    pdf.setFontSize(12);
+    pdf.text("Relatorio de Estatisticas",margin,23);
+    pdf.setFont("helvetica","normal");
+    pdf.setFontSize(8.5);
+    pdf.text(
+      `Gerado em ${new Date().toLocaleString("pt-BR")}`,
+      margin,
+      29
+    );
+
+    y=43;
+    pdf.setTextColor(20,35,48);
+    pdf.setFont("helvetica","bold");
+    pdf.setFontSize(14);
+    pdf.text("Dashboard geral",margin,y);
+    y+=7;
+
+    const cards=[
+      ["Jogos",stats.done.length],
+      ["Vitorias",stats.wins],
+      ["Empates",stats.draws],
+      ["Derrotas",stats.losses],
+      ["Gols marcados",stats.gf],
+      ["Gols sofridos",stats.ga],
+      ["Saldo",stats.balance],
+      ["Aproveitamento",`${stats.performance}%`]
+    ];
+
+    const cardW=42.5, cardH=20, gap=2.5;
+    cards.forEach(([label,value],idx)=>{
+      const col=idx%4, row=Math.floor(idx/4);
+      const x=margin+col*(cardW+gap);
+      const cy=y+row*(cardH+gap);
+
+      pdf.setFillColor(240,246,250);
+      pdf.roundedRect(x,cy,cardW,cardH,2,2,"F");
+      pdf.setTextColor(80,100,115);
+      pdf.setFont("helvetica","normal");
+      pdf.setFontSize(7.5);
+      pdf.text(pdfSafe(label),x+3,cy+6);
+      pdf.setTextColor(5,70,105);
+      pdf.setFont("helvetica","bold");
+      pdf.setFontSize(15);
+      pdf.text(pdfSafe(value),x+3,cy+15);
+    });
+
+    y+=48;
+
+    // Barras simples para V/E/D
+    pdf.setTextColor(20,35,48);
+    pdf.setFontSize(12);
+    pdf.setFont("helvetica","bold");
+    pdf.text("Resumo de resultados",margin,y);
+    y+=7;
+
+    const total=Math.max(1,stats.done.length);
+    const bars=[
+      ["Vitorias",stats.wins],
+      ["Empates",stats.draws],
+      ["Derrotas",stats.losses]
+    ];
+
+    bars.forEach(([label,value])=>{
+      pdf.setTextColor(60,75,88);
+      pdf.setFont("helvetica","normal");
+      pdf.setFontSize(8);
+      pdf.text(`${pdfSafe(label)}: ${value}`,margin,y+3);
+
+      const bx=52, bw=135;
+      pdf.setFillColor(230,235,240);
+      pdf.roundedRect(bx,y,bw,4,2,2,"F");
+      pdf.setFillColor(15,137,207);
+      pdf.roundedRect(bx,y,bw*(value/total),4,2,2,"F");
+      y+=9;
+    });
+
+    y+=3;
+
+    // Histórico
+    pdf.setTextColor(20,35,48);
+    pdf.setFont("helvetica","bold");
+    pdf.setFontSize(12);
+    pdf.text("Historico de jogos",margin,y);
+    y+=7;
+
+    const history=[...stats.done].sort(
+      (a,b)=>(b.date+b.time).localeCompare(a.date+a.time)
+    );
+
+    if(!history.length){
+      pdf.setFont("helvetica","normal");
+      pdf.setFontSize(9);
+      pdf.text("Nenhuma partida finalizada.",margin,y);
+    }else{
+      history.forEach((e,index)=>{
+        if(y>278){
+          pdf.addPage();
+          y=16;
+        }
+
+        const result=statusOf(e);
+        pdf.setFillColor(index%2===0?248:239,index%2===0?250:245,index%2===0?252:248);
+        pdf.roundedRect(margin,y-4,182,12,1.5,1.5,"F");
+
+        pdf.setTextColor(25,40,52);
+        pdf.setFont("helvetica","bold");
+        pdf.setFontSize(8.5);
+        pdf.text(
+          pdfSafe(`PANDAS FC ${e.goalsFor} x ${e.goalsAgainst} ${e.opponent}`),
+          margin+3,
+          y+1
+        );
+
+        pdf.setFont("helvetica","normal");
+        pdf.setFontSize(7.2);
+        pdf.setTextColor(90,105,116);
+        pdf.text(
+          pdfSafe(`${formatDate(e.date)}  |  ${result}`),
+          margin+3,
+          y+5.5
+        );
+
+        y+=14;
+      });
+    }
+
+    // Artilharia
+    const scorers=[...state.players]
+      .filter(p=>Number(p.goals||0)>0)
+      .sort((a,b)=>(b.goals||0)-(a.goals||0));
+
+    if(y>250){pdf.addPage();y=16;}
+    y+=5;
+    pdf.setTextColor(20,35,48);
+    pdf.setFont("helvetica","bold");
+    pdf.setFontSize(12);
+    pdf.text("Artilharia",margin,y);
+    y+=7;
+
+    if(!scorers.length){
+      pdf.setFont("helvetica","normal");
+      pdf.setFontSize(9);
+      pdf.text("Nenhum gol registrado para jogadores.",margin,y);
+    }else{
+      scorers.forEach((p,i)=>{
+        if(y>282){pdf.addPage();y=16;}
+        pdf.setFont("helvetica","normal");
+        pdf.setFontSize(8.5);
+        pdf.setTextColor(30,45,55);
+        pdf.text(
+          pdfSafe(`${i+1}. #${p.number} ${p.name} - ${p.goals||0} gol(s)`),
+          margin,
+          y
+        );
+        y+=6;
+      });
+    }
+
+    pdf.save(
+      `pandas-fc-estatisticas-${new Date().toISOString().slice(0,10)}.pdf`
+    );
+
+    toast("PDF de Estatísticas gerado.");
+  }catch(err){
+    console.error("PDF Estatísticas:",err);
+    toast(err?.message||"Não foi possível gerar o PDF.");
+  }finally{
+    if(button){
+      button.disabled=false;
+      button.textContent=oldText;
+    }
+  }
+}
+
 
 function renderStats(){
  const done=state.events.filter(e=>e.goalsFor!==''&&e.goalsAgainst!=='');let w=0,d=0,l=0,gf=0,ga=0;
@@ -3104,6 +3366,8 @@ document.getElementById("chatMessages")?.addEventListener("click",e=>{const d=e.
 document.getElementById("chatPinned")?.addEventListener("click",e=>{if(e.target.closest("#unpinChatBtn"))unpinChat();});
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){presenceBeat();if(currentUser)startChat();}});
 window.addEventListener("focus",()=>{presenceBeat();if(currentUser)startChat();});
+
+document.getElementById("generateStatsPdf")?.addEventListener("click",generateStatisticsPdf);
 
 window.editPlayer=editPlayer;
 window.deletePlayer=deletePlayer;
