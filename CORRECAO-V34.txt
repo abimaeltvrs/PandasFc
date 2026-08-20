@@ -1,0 +1,22 @@
+PANDAS FC v34 — CORREÇÃO PANDAS MUSIC
+
+CAUSA:
+O módulo PANDAS MUSIC havia sido inserido dentro de showRegister().
+Isso fazia renderMusicAdmin() ficar fora do escopo principal e gerava:
+ReferenceError: renderMusicAdmin is not defined
+
+CORREÇÃO:
+- PANDAS MUSIC movido para o escopo principal.
+- showRegister() restaurado.
+- diagnóstico v33 removido.
+- app.js validado por sintaxe.
+- cache atualizado para v34.
+
+MANTIDO:
+- Firebase Authentication
+- DIRETORIA / JOGADOR
+- Firestore
+- OneSignal Push
+- Escalação arrastável
+- PANDAS MUSIC
+- Áudios via pasta audio/

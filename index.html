@@ -9,7 +9,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" href="./icon-192.png" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
-  <link rel="stylesheet" href="./styles.css?v=33" />
+  <link rel="stylesheet" href="./styles.css?v=34" />
   <title>PANDAS FC</title>
 
   <!-- OneSignal Web Push - usa o MESMO service worker do PWA -->
@@ -436,157 +436,8 @@
   <div id="toast" class="toast"></div>
   
 
-<div id="moduleDiagnosticBox" style="
-  display:none;
-  position:fixed;
-  left:8px;
-  right:8px;
-  bottom:8px;
-  z-index:999999;
-  max-height:60vh;
-  overflow:auto;
-  background:#2b0b0b;
-  color:#fff;
-  border:2px solid #ff6b6b;
-  border-radius:12px;
-  padding:12px;
-  box-shadow:0 8px 30px rgba(0,0,0,.55);
-  font-family:Arial,sans-serif;">
-  <div style="display:flex;justify-content:space-between;gap:10px;align-items:center">
-    <strong>🧪 Diagnóstico de inicialização v33</strong>
-    <button id="copyModuleDiagnostic" type="button"
-      style="padding:8px;border:0;border-radius:7px;font-weight:700">
-      📋 Copiar
-    </button>
-  </div>
-  <pre id="moduleDiagnosticText" style="
-    white-space:pre-wrap;
-    word-break:break-word;
-    margin:10px 0 0;
-    font-size:12px;"></pre>
-</div>
 
-<script type="module">
-const diagBox = document.getElementById("moduleDiagnosticBox");
-const diagText = document.getElementById("moduleDiagnosticText");
-const entries = [];
 
-function serialize(value) {
-  if (value instanceof Error) {
-    return {
-      name: value.name || "",
-      message: value.message || "",
-      stack: value.stack || ""
-    };
-  }
-  try {
-    return JSON.parse(JSON.stringify(value));
-  } catch {
-    return String(value);
-  }
-}
-
-function addDiag(type, data) {
-  entries.push({
-    time: new Date().toISOString(),
-    type,
-    data: serialize(data)
-  });
-
-  diagBox.style.display = "block";
-  diagText.textContent = entries.map((entry, index) => {
-    return "#" + (index + 1) +
-      " " + entry.time +
-      "\nTIPO: " + entry.type +
-      "\n" + (
-        typeof entry.data === "string"
-          ? entry.data
-          : JSON.stringify(entry.data, null, 2)
-      );
-  }).join("\n\n");
-}
-
-document.getElementById("copyModuleDiagnostic").addEventListener("click", async () => {
-  try {
-    await navigator.clipboard.writeText(diagText.textContent);
-    alert("Diagnóstico copiado.");
-  } catch {
-    alert("Não foi possível copiar automaticamente.");
-  }
-});
-
-window.addEventListener("error", event => {
-  addDiag("window.error", {
-    message: event.message || "",
-    filename: event.filename || "",
-    line: event.lineno || 0,
-    column: event.colno || 0,
-    error: serialize(event.error)
-  });
-});
-
-window.addEventListener("unhandledrejection", event => {
-  addDiag("unhandledrejection", serialize(event.reason));
-});
-
-const moduleUrl = "./app.js?v=33&diag=" + Date.now();
-
-try {
-  addDiag("bootstrap", {
-    message: "Iniciando import() controlado do app.js",
-    moduleUrl,
-    location: location.href,
-    online: navigator.onLine
-  });
-
-  const response = await fetch(moduleUrl, { cache: "no-store" });
-  addDiag("fetch app.js", {
-    status: response.status,
-    ok: response.ok,
-    contentType: response.headers.get("content-type"),
-    lastModified: response.headers.get("last-modified"),
-    url: response.url
-  });
-
-  if (!response.ok) {
-    throw new Error("Falha ao baixar app.js: HTTP " + response.status);
-  }
-
-  const sourceText = await response.text();
-  addDiag("app.js baixado", {
-    bytes: sourceText.length,
-    first300: sourceText.slice(0, 300),
-    hasConnectRealtime: sourceText.includes("async function connectRealtime"),
-    hasFirebaseImport: sourceText.includes("firebase-firestore.js"),
-    hasPandasMusic: sourceText.includes("PANDAS MUSIC")
-  });
-
-  // Importa o módulo real após confirmar que o arquivo foi baixado.
-  await import(moduleUrl);
-
-  addDiag("import app.js", {
-    message: "✅ import() concluído sem lançar exceção"
-  });
-
-  // Se o app continuar em Conectando mesmo tendo importado, mostra estado interno da tela.
-  setTimeout(() => {
-    const status = document.getElementById("syncStatus");
-    const role = document.getElementById("sessionRole");
-    const userName = document.getElementById("sessionUserName");
-
-    addDiag("watchdog 20s", {
-      syncStatus: status?.textContent || null,
-      sessionRole: role?.textContent || null,
-      sessionUserName: userName?.textContent || null,
-      pandasOneSignal: !!window.PandasOneSignal,
-      serviceWorkerController: navigator.serviceWorker?.controller?.scriptURL || null
-    });
-  }, 20000);
-
-} catch (error) {
-  addDiag("FALHA AO CARREGAR APP.JS", error);
-}
-</script>
-
+  <script type="module" src="./app.js?v=34"></script>
 </body>
 </html>

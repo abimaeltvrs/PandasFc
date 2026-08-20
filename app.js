@@ -2021,8 +2021,6 @@ function friendlyAuthError(err){
   };
   return map[code] || err?.message || "Não foi possível concluir a operação.";
 }
-function showRegister(show){
-  
 /* =========================================================
    PANDAS MUSIC
    YouTube + avisos hospedados no GitHub
@@ -2557,10 +2555,15 @@ window.previewMusicAudio=previewMusicAudio;
 window.broadcastMusicAudio=broadcastMusicAudio;
 window.removeMusicAudio=removeMusicAudio;
 
-document.getElementById("loginForm")?.classList.toggle("hidden",show);
+
+
+function showRegister(show){
+  document.getElementById("loginForm")?.classList.toggle("hidden",show);
   document.getElementById("registerForm")?.classList.toggle("hidden",!show);
   setAuthMessage("");
 }
+
+
 document.getElementById("showRegisterBtn")?.addEventListener("click",()=>showRegister(true));
 document.getElementById("backToLoginBtn")?.addEventListener("click",()=>showRegister(false));
 

@@ -1,4 +1,4 @@
-const CACHE = "pandas-fc-v33-import-diagnostic";
+const CACHE = "pandas-fc-v34-music-fixed";
 
 const CORE = [
   "./",
