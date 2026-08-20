@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Diagnóstico Escrita Firestore - PANDAS FC</title>
+<style>
+body{font-family:Arial,sans-serif;background:#061829;color:#fff;margin:0;padding:22px}
+.card{max-width:680px;margin:24px auto;background:#0b2740;border:1px solid #1e6f9f;border-radius:16px;padding:20px}
+input,button{width:100%;box-sizing:border-box;padding:12px;margin-top:10px;border-radius:9px;font-size:16px}
+input{border:1px solid #5f8dab}
+button{border:0;font-weight:700;cursor:pointer}.primary{background:#1189cf;color:#fff}.secondary{background:#e8edf2;color:#102030}
+pre{white-space:pre-wrap;word-break:break-word;background:#04111d;padding:13px;border-radius:10px;min-height:220px;line-height:1.4}
+label{display:block;margin-top:12px;font-weight:700} p{color:#bdd1df}
+</style>
+</head>
+<body>
+<div class="card">
+<h1>🐼 Diagnóstico de escrita Firestore</h1>
+<p>Compara SDK Firebase e API REST, ambos com limite de 10 segundos.</p>
+<label>E-mail</label><input id="email" type="email" value="abimaeltablet@gmail.com">
+<label>Senha</label><input id="password" type="password" placeholder="Senha">
+<button id="run" class="primary">🧪 Executar diagnóstico</button>
+<button id="copy" class="secondary">📋 Copiar resultado</button>
+<h3>Resultado</h3><pre id="out">Aguardando...</pre>
+</div>
+
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+import {getAuth,signInWithEmailAndPassword} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+import {getFirestore,doc,setDoc,serverTimestamp} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+
+const config={
+ apiKey:"AIzaSyD68eZtjE-tsweX6evcgSWJjaIznfApSdI",
+ authDomain:"panda-fc-449f7.firebaseapp.com",
+ projectId:"panda-fc-449f7",
+ storageBucket:"panda-fc-449f7.firebasestorage.app",
+ messagingSenderId:"854268170585",
+ appId:"1:854268170585:web:1f1cadb971677f59a97c48",
+ measurementId:"G-GF5664G8HQ"
+};
+const app=initializeApp(config), auth=getAuth(app), db=getFirestore(app);
+const out=document.getElementById("out"); let log=[];
+function add(a,b=""){log.push(a+(b!==""?": "+(typeof b==="string"?b:JSON.stringify(b,null,2)):""));out.textContent=log.join("\n\n")}
+function timeout(p,ms,label){return Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error(label+" TIMEOUT após "+ms/1000+"s")),ms))])}
+function eo(e){return {name:e?.name||null,code:e?.code||null,message:e?.message||String(e)}}
+
+document.getElementById("run").onclick=async()=>{
+ log=[]; add("Data/hora",new Date().toString()); add("Online",navigator.onLine);
+ const email=document.getElementById("email").value.trim(), pass=document.getElementById("password").value;
+ try{
+   add("1. Login","INICIANDO");
+   const c=await timeout(signInWithEmailAndPassword(auth,email,pass),10000,"LOGIN");
+   add("1. Login","✅ OK");
+   add("UID",c.user.uid);
+   const token=await c.user.getIdToken(true);
+   add("Token Firebase","✅ OBTIDO");
+
+   const testId="write-test-"+Date.now();
+   const ref=doc(db,"diagnostics",testId);
+
+   add("2. SDK setDoc","INICIANDO (timeout 10s)");
+   try{
+     await timeout(setDoc(ref,{source:"sdk-test",createdAt:serverTimestamp()}),10000,"SDK setDoc");
+     add("2. SDK setDoc","✅ OK");
+   }catch(e){add("2. SDK setDoc RESULTADO",eo(e));}
+
+   add("3. REST Firestore PATCH","INICIANDO (timeout 10s)");
+   const url=`https://firestore.googleapis.com/v1/projects/${config.projectId}/databases/(default)/documents/diagnostics/rest-${testId}`;
+   const body={fields:{
+     source:{stringValue:"rest-test"},
+     uid:{stringValue:c.user.uid},
+     createdAt:{timestampValue:new Date().toISOString()}
+   }};
+   try{
+     const controller=new AbortController();
+     const t=setTimeout(()=>controller.abort(),10000);
+     const r=await fetch(url,{
+       method:"PATCH",
+       headers:{
+         "Content-Type":"application/json",
+         "Authorization":"Bearer "+token,
+         "X-Goog-Api-Key":config.apiKey
+       },
+       body:JSON.stringify(body),
+       signal:controller.signal
+     });
+     clearTimeout(t);
+     const text=await r.text();
+     let parsed; try{parsed=JSON.parse(text)}catch{parsed=text}
+     add("3. REST HTTP status",String(r.status)+" "+r.statusText);
+     add("3. REST resposta",parsed);
+   }catch(e){add("3. REST ERRO",eo(e));}
+
+   add("RESULTADO FINAL","Copie TODO este resultado e envie.");
+ }catch(e){
+   add("ERRO ANTES DOS TESTES",eo(e));
+ }
+};
+document.getElementById("copy").onclick=async()=>{
+ try{await navigator.clipboard.writeText(out.textContent);alert("Copiado.");}
+ catch{alert("Selecione o texto manualmente.");}
+};
+</script>
+</body>
+</html>
