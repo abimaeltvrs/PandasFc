@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 import {
   getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot,
-  getDocs, serverTimestamp
+  getDocs, getDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 import {
   getAuth, onAuthStateChanged, createUserWithEmailAndPassword,
@@ -161,58 +161,150 @@ function markWriting(){
   setSyncStatus("☁️ Sincronizando...");
 }
 
-function connectRealtime(){
+async function connectRealtime(){
   if(realtimeStarted) return;
-  realtimeStarted = true;
-  onSnapshot(collection(db,"players"), snap=>{
-    state.players = snap.docs.map(d=>({id:d.id,...d.data()}));
-    state.players.sort((a,b)=>(Number(a.number)||0)-(Number(b.number)||0) || String(a.name||"").localeCompare(String(b.name||"")));
-    firebaseReady = true;
-    setSyncStatus("☁️ Sincronizado","ok");
-    renderPlayers(); renderLineup(); renderScorers();
-  }, err=>syncError(err));
 
-  onSnapshot(collection(db,"events"), snap=>{
-    state.events = snap.docs.map(d=>({id:d.id,...d.data()}));
-    firebaseReady = true;
-    setSyncStatus("☁️ Sincronizado","ok");
-    renderEvents(); renderMatches(); renderStats(); renderCalendar(); checkTodayMatches();
-  }, err=>syncError(err));
+  setSyncStatus("☁️ Conectando...");
 
-  onSnapshot(doc(db,"settings","team"), snap=>{
-    state.teamLogo = snap.exists() ? (snap.data().teamLogo || "") : "";
-    firebaseReady = true;
-    setSyncStatus("☁️ Sincronizado","ok");
-    renderLogo();
-  }, err=>syncError(err));
+  /*
+   * Faz primeiro uma sincronização inicial por requisições normais.
+   * Isso evita o cabeçalho ficar eternamente em "Conectando..."
+   * enquanto o canal realtime/WebChannel ainda está sendo aberto.
+   */
+  try{
+    const timeout=(promise,ms=12000,label="Firebase")=>Promise.race([
+      promise,
+      new Promise((_,reject)=>setTimeout(
+        ()=>reject(new Error(`${label}: tempo limite de ${Math.round(ms/1000)}s.`)),
+        ms
+      ))
+    ]);
 
-  onSnapshot(doc(db,"settings","dashboard"), snap=>{
-    const d = snap.exists() ? snap.data() : {};
-    state.dashboardMedia = {
-      type: d.mediaType || "",
-      data: d.mediaData || "",
-      url: d.mediaUrl || "",
-      urlMode: d.urlMode || "auto"
+    const [
+      playersSnap,
+      eventsSnap,
+      teamSnap,
+      dashboardSnap,
+      lineupSnap,
+      musicSnap
+    ]=await timeout(Promise.all([
+      getDocs(collection(db,"players")),
+      getDocs(collection(db,"events")),
+      getDoc(doc(db,"settings","team")),
+      getDoc(doc(db,"settings","dashboard")),
+      getDoc(doc(db,"lineup","current")),
+      getDoc(doc(db,"settings","music"))
+    ]),15000,"Sincronização inicial");
+
+    state.players=playersSnap.docs.map(d=>({id:d.id,...d.data()}));
+    state.players.sort((a,b)=>
+      (Number(a.number)||0)-(Number(b.number)||0) ||
+      String(a.name||"").localeCompare(String(b.name||""))
+    );
+
+    state.events=eventsSnap.docs.map(d=>({id:d.id,...d.data()}));
+
+    state.teamLogo=teamSnap.exists()?(teamSnap.data().teamLogo||""):"";
+
+    const dashboardData=dashboardSnap.exists()?dashboardSnap.data():{};
+    state.dashboardMedia={
+      type:dashboardData.mediaType||"",
+      data:dashboardData.mediaData||"",
+      url:dashboardData.mediaUrl||"",
+      urlMode:dashboardData.urlMode||"auto"
     };
+
+    const lineupData=lineupSnap.exists()?lineupSnap.data():{};
+    state.selectedLineup=lineupData.playerIds||[];
+    state.lineupPositions=lineupData.positions||{};
+
+    const musicData=musicSnap.exists()?musicSnap.data():{};
+    state.music={
+      youtubePlaylistUrl:musicData.youtubePlaylistUrl||"",
+      youtubePlaylistId:musicData.youtubePlaylistId||"",
+      customAudios:Array.isArray(musicData.customAudios)?musicData.customAudios:[],
+      announcement:musicData.announcement||null
+    };
+
     const typeSelect=document.getElementById("dashboardMediaUrlType");
     const urlInput=document.getElementById("dashboardMediaUrl");
-    if(typeSelect) typeSelect.value=state.dashboardMedia.urlMode;
-    if(urlInput && state.dashboardMedia.url) urlInput.value=state.dashboardMedia.url;
-    firebaseReady = true;
+    if(typeSelect)typeSelect.value=state.dashboardMedia.urlMode;
+    if(urlInput && state.dashboardMedia.url)urlInput.value=state.dashboardMedia.url;
+
+    firebaseReady=true;
+    realtimeStarted=true;
+    setSyncStatus("☁️ Sincronizado","ok");
+
+    renderPlayers();
+    renderLineup();
+    renderScorers();
+    renderEvents();
+    renderMatches();
+    renderStats();
+    renderCalendar();
+    checkTodayMatches();
+    renderLogo();
+    renderDashboardMedia();
+    renderMusicAdmin();
+    applyMusicConfiguration();
+    handleRemoteAnnouncement(state.music.announcement);
+
+  }catch(err){
+    console.error("Sincronização inicial Firebase:",err);
+    realtimeStarted=false;
+    setSyncStatus("⚠️ Erro de sincronização","err");
+    toast(`Firebase: ${err?.message||"falha na sincronização"}`);
+    return;
+  }
+
+  /*
+   * Após a leitura inicial ter funcionado, liga os listeners realtime.
+   * Se o canal realtime demorar, o app continua utilizável e já aparece
+   * como sincronizado porque os dados iniciais foram confirmados.
+   */
+  onSnapshot(collection(db,"players"),snap=>{
+    state.players=snap.docs.map(d=>({id:d.id,...d.data()}));
+    state.players.sort((a,b)=>
+      (Number(a.number)||0)-(Number(b.number)||0) ||
+      String(a.name||"").localeCompare(String(b.name||""))
+    );
+    setSyncStatus("☁️ Sincronizado","ok");
+    renderPlayers(); renderLineup(); renderScorers();
+  },err=>realtimeSyncError("players",err));
+
+  onSnapshot(collection(db,"events"),snap=>{
+    state.events=snap.docs.map(d=>({id:d.id,...d.data()}));
+    setSyncStatus("☁️ Sincronizado","ok");
+    renderEvents(); renderMatches(); renderStats(); renderCalendar(); checkTodayMatches();
+  },err=>realtimeSyncError("events",err));
+
+  onSnapshot(doc(db,"settings","team"),snap=>{
+    state.teamLogo=snap.exists()?(snap.data().teamLogo||""):"";
+    setSyncStatus("☁️ Sincronizado","ok");
+    renderLogo();
+  },err=>realtimeSyncError("team",err));
+
+  onSnapshot(doc(db,"settings","dashboard"),snap=>{
+    const d=snap.exists()?snap.data():{};
+    state.dashboardMedia={
+      type:d.mediaType||"",
+      data:d.mediaData||"",
+      url:d.mediaUrl||"",
+      urlMode:d.urlMode||"auto"
+    };
     setSyncStatus("☁️ Sincronizado","ok");
     renderDashboardMedia();
-  }, err=>syncError(err));
+  },err=>realtimeSyncError("dashboard",err));
 
-  onSnapshot(doc(db,"lineup","current"), snap=>{
-    const lineupData = snap.exists() ? snap.data() : {};
-    state.selectedLineup = lineupData.playerIds || [];
-    state.lineupPositions = lineupData.positions || {};
-    firebaseReady = true;
+  onSnapshot(doc(db,"lineup","current"),snap=>{
+    const d=snap.exists()?snap.data():{};
+    state.selectedLineup=d.playerIds||[];
+    state.lineupPositions=d.positions||{};
     setSyncStatus("☁️ Sincronizado","ok");
     renderLineup();
-  }, err=>syncError(err));
+  },err=>realtimeSyncError("lineup",err));
 
-  onSnapshot(doc(db,"settings","music"), snap=>{
+  onSnapshot(doc(db,"settings","music"),snap=>{
     const d=snap.exists()?snap.data():{};
     state.music={
       youtubePlaylistUrl:d.youtubePlaylistUrl||"",
@@ -220,10 +312,21 @@ function connectRealtime(){
       customAudios:Array.isArray(d.customAudios)?d.customAudios:[],
       announcement:d.announcement||null
     };
+    setSyncStatus("☁️ Sincronizado","ok");
     renderMusicAdmin();
     applyMusicConfiguration();
     handleRemoteAnnouncement(state.music.announcement);
-  }, err=>syncError(err));
+  },err=>realtimeSyncError("music",err));
+}
+
+function realtimeSyncError(source,err){
+  console.error(`Realtime Firebase (${source}):`,err);
+  /*
+   * Não derruba os dados já carregados pela sincronização inicial.
+   * Apenas informa a falha.
+   */
+  setSyncStatus("⚠️ Realtime indisponível","err");
+  toast(`Falha realtime (${source}). Os dados iniciais continuam disponíveis.`);
 }
 
 function syncError(err){

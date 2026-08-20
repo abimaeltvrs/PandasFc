@@ -1,0 +1,21 @@
+PANDAS FC v31 — CORREÇÃO FIREBASE
+
+Problema observado:
+- Firebase Auth funcionava.
+- getDoc/getDocs/setDoc funcionavam no diagnóstico.
+- App principal ficava em "Conectando..." esperando listeners realtime.
+
+Correção:
+- O app agora faz leitura inicial explícita via getDocs/getDoc.
+- Quando essa leitura termina, mostra "Sincronizado".
+- Depois ativa onSnapshot em segundo plano.
+- Timeout de 15 segundos na sincronização inicial.
+- Se realtime falhar posteriormente, os dados iniciais continuam disponíveis.
+
+Não foram alterados:
+- API Key
+- Login / DIRETORIA / JOGADOR
+- OneSignal Push
+- Service Worker do OneSignal
+- PANDAS MUSIC
+- Escalação arrastável

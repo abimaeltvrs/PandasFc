@@ -1,4 +1,4 @@
-const CACHE = "pandas-fc-v30-pandas-music";
+const CACHE = "pandas-fc-v31-firebase-sync";
 
 const CORE = [
   "./",
