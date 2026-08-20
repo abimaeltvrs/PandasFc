@@ -1,0 +1,30 @@
+PANDAS FC v35 — YOUTUBE FLEX
+
+A aba Música agora aceita:
+
+- Playlist:
+  https://www.youtube.com/playlist?list=...
+
+- Vídeo normal:
+  https://www.youtube.com/watch?v=VIDEO_ID
+
+- Link curto:
+  https://youtu.be/VIDEO_ID
+
+- Shorts:
+  https://www.youtube.com/shorts/VIDEO_ID
+
+- YouTube Music:
+  https://music.youtube.com/watch?v=VIDEO_ID
+  ou links com ?list=
+
+REGRAS:
+- DIRETORIA continua sendo a única que altera o conteúdo.
+- JOGADORES continuam apenas controlando o player.
+- Play/Pause/Volume funcionam para vídeo individual.
+- Em vídeo individual, Anterior/Próxima reiniciam o vídeo.
+- Em playlist, Anterior/Próxima navegam entre faixas.
+- Áudios internos via pasta audio/ continuam funcionando.
+- Login, Push, Firestore e escalação foram mantidos.
+
+Cache atualizado para v35.

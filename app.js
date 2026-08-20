@@ -103,6 +103,8 @@ const state = {
   music: {
     youtubePlaylistUrl: "",
     youtubePlaylistId: "",
+    youtubeVideoId: "",
+    youtubeSourceType: "",
     customAudios: [],
     announcement: null
   },
@@ -222,6 +224,11 @@ async function connectRealtime(){
     state.music={
       youtubePlaylistUrl:musicData.youtubePlaylistUrl||"",
       youtubePlaylistId:musicData.youtubePlaylistId||"",
+      youtubeVideoId:musicData.youtubeVideoId||"",
+      youtubeSourceType:musicData.youtubeSourceType||(
+        musicData.youtubePlaylistId ? "playlist" :
+        musicData.youtubeVideoId ? "video" : ""
+      ),
       customAudios:Array.isArray(musicData.customAudios)?musicData.customAudios:[],
       announcement:musicData.announcement||null
     };
@@ -309,6 +316,11 @@ async function connectRealtime(){
     state.music={
       youtubePlaylistUrl:d.youtubePlaylistUrl||"",
       youtubePlaylistId:d.youtubePlaylistId||"",
+      youtubeVideoId:d.youtubeVideoId||"",
+      youtubeSourceType:d.youtubeSourceType||(
+        d.youtubePlaylistId ? "playlist" :
+        d.youtubeVideoId ? "video" : ""
+      ),
       customAudios:Array.isArray(d.customAudios)?d.customAudios:[],
       announcement:d.announcement||null
     };
@@ -2029,26 +2041,72 @@ function friendlyAuthError(err){
 let youtubeApiPromise=null;
 let youtubeMusicPlayer=null;
 let youtubeMusicReady=false;
-let youtubeLoadedPlaylistId="";
+let youtubeLoadedSourceKey="";
 let customAnnouncementAudio=null;
 let currentAnnouncementId="";
 let resumeYoutubeAfterAnnouncement=false;
 let musicUserStarted=false;
 let lastKnownYoutubeState=-1;
 
-function extractYoutubePlaylistId(value=""){
+function parseYoutubeSource(value=""){
   const raw=String(value||"").trim();
-  if(!raw)return "";
+  if(!raw)return {type:"",id:"",url:""};
+
+  // Aceita somente ID de playlist ou ID de vídeo colado diretamente.
+  if(/^[A-Za-z0-9_-]{10,}$/.test(raw) && !raw.includes("/") && !raw.includes(".")){
+    // IDs de playlist normalmente são mais longos que IDs de vídeo (11 chars).
+    if(raw.length===11)return {type:"video",id:raw,url:raw};
+    return {type:"playlist",id:raw,url:raw};
+  }
 
   try{
-    const url=new URL(raw,location.href);
+    const url=new URL(raw);
+
+    // Playlist tem prioridade caso o link contenha ?list=
     const list=url.searchParams.get("list");
-    if(list)return list.trim();
+    if(list){
+      return {type:"playlist",id:list.trim(),url:raw};
+    }
+
+    const host=url.hostname.replace(/^www\./,"").toLowerCase();
+
+    // youtu.be/VIDEO_ID
+    if(host==="youtu.be"){
+      const id=url.pathname.split("/").filter(Boolean)[0]||"";
+      if(id)return {type:"video",id,url:raw};
+    }
+
+    // youtube.com/watch?v=VIDEO_ID
+    if(host.endsWith("youtube.com") || host==="music.youtube.com"){
+      const v=url.searchParams.get("v");
+      if(v)return {type:"video",id:v.trim(),url:raw};
+
+      // youtube.com/shorts/VIDEO_ID
+      const parts=url.pathname.split("/").filter(Boolean);
+      const shortsIndex=parts.indexOf("shorts");
+      if(shortsIndex!==-1 && parts[shortsIndex+1]){
+        return {type:"video",id:parts[shortsIndex+1],url:raw};
+      }
+
+      // youtube.com/embed/VIDEO_ID
+      const embedIndex=parts.indexOf("embed");
+      if(embedIndex!==-1 && parts[embedIndex+1]){
+        return {type:"video",id:parts[embedIndex+1],url:raw};
+      }
+    }
   }catch{}
 
-  // Também aceita colar somente o ID da playlist.
-  if(/^[A-Za-z0-9_-]{10,}$/.test(raw) && !raw.includes("/")) return raw;
-  return "";
+  return {type:"",id:"",url:raw};
+}
+
+function extractYoutubePlaylistId(value=""){
+  const parsed=parseYoutubeSource(value);
+  return parsed.type==="playlist"?parsed.id:"";
+}
+
+function extractYoutubeVideoId(value=""){
+  const parsed=parseYoutubeSource(value);
+  return parsed.type==="video"?parsed.id:"";
 }
 
 function normalizeAudioUrl(value=""){
@@ -2098,37 +2156,61 @@ function loadYoutubeIframeAPI(){
 async function ensureYoutubeMusicPlayer(){
   if(youtubeMusicPlayer)return youtubeMusicPlayer;
 
-  const playlistId=state.music.youtubePlaylistId||extractYoutubePlaylistId(state.music.youtubePlaylistUrl);
-  if(!playlistId)return null;
+  const sourceType=state.music.youtubeSourceType||
+    (state.music.youtubePlaylistId?"playlist":
+     state.music.youtubeVideoId?"video":"");
+
+  const sourceId=sourceType==="playlist"
+    ? state.music.youtubePlaylistId
+    : state.music.youtubeVideoId;
+
+  if(!sourceType || !sourceId)return null;
 
   const YT=await loadYoutubeIframeAPI();
+
+  const playerVars={
+    playsinline:1,
+    enablejsapi:1,
+    origin:location.origin,
+    rel:0,
+    controls:0
+  };
+
+  if(sourceType==="playlist"){
+    playerVars.listType="playlist";
+    playerVars.list=sourceId;
+  }
 
   youtubeMusicPlayer=new YT.Player("youtubeMusicPlayer",{
     width:"160",
     height:"90",
-    playerVars:{
-      playsinline:1,
-      enablejsapi:1,
-      origin:location.origin,
-      rel:0,
-      controls:0,
-      listType:"playlist",
-      list:playlistId
-    },
+    videoId:sourceType==="video"?sourceId:undefined,
+    playerVars,
     events:{
       onReady:event=>{
         youtubeMusicReady=true;
-        youtubeLoadedPlaylistId=playlistId;
+        youtubeLoadedSourceKey=`${sourceType}:${sourceId}`;
+
         try{
-          event.target.cuePlaylist({
-            listType:"playlist",
-            list:playlistId,
-            index:0,
-            startSeconds:0
-          });
-          event.target.setLoop(true);
-          event.target.setVolume(Number(document.getElementById("musicVolume")?.value||65));
-        }catch(err){console.warn("PANDAS MUSIC ready:",err);}
+          if(sourceType==="playlist"){
+            event.target.cuePlaylist({
+              listType:"playlist",
+              list:sourceId,
+              index:0,
+              startSeconds:0
+            });
+            event.target.setLoop(true);
+          }else{
+            event.target.cueVideoById(sourceId);
+          }
+
+          event.target.setVolume(
+            Number(document.getElementById("musicVolume")?.value||65)
+          );
+        }catch(err){
+          console.warn("PANDAS MUSIC ready:",err);
+        }
+
         updateMusicPlayerUI();
       },
       onStateChange:event=>{
@@ -2137,7 +2219,7 @@ async function ensureYoutubeMusicPlayer(){
       },
       onError:event=>{
         console.warn("YouTube player error",event.data);
-        setMusicSubtitle("Não foi possível reproduzir esta playlist.");
+        setMusicSubtitle("Não foi possível reproduzir este conteúdo.");
       }
     }
   });
@@ -2180,16 +2262,23 @@ function updateMusicPlayerUI(){
   visual?.classList.add("hidden");
   if(title)title.textContent="🎵 PANDAS MUSIC";
 
-  if(!state.music.youtubePlaylistId){
-    if(subtitle)subtitle.textContent="Aguardando playlist da DIRETORIA";
+  const hasYoutubeSource=!!(
+    state.music.youtubePlaylistId || state.music.youtubeVideoId
+  );
+
+  if(!hasYoutubeSource){
+    if(subtitle)subtitle.textContent="Aguardando conteúdo da DIRETORIA";
     if(playBtn)playBtn.textContent="▶";
     return;
   }
 
   if(subtitle){
+    const sourceLabel=state.music.youtubeSourceType==="video"
+      ?"Vídeo do PANDAS FC"
+      :"Playlist do PANDAS FC";
     subtitle.textContent=isYoutubePlaying()
-      ?"Playlist do PANDAS FC • tocando"
-      :"Playlist do PANDAS FC • toque ▶ para ouvir";
+      ?`${sourceLabel} • tocando`
+      :`${sourceLabel} • toque ▶ para ouvir`;
   }
   if(playBtn)playBtn.textContent=isYoutubePlaying()?"⏸":"▶";
 }
@@ -2197,13 +2286,19 @@ function updateMusicPlayerUI(){
 async function applyMusicConfiguration(){
   updateMusicPlayerUI();
 
-  const playlistId=state.music.youtubePlaylistId||extractYoutubePlaylistId(state.music.youtubePlaylistUrl);
+  const sourceType=state.music.youtubeSourceType||
+    (state.music.youtubePlaylistId?"playlist":
+     state.music.youtubeVideoId?"video":"");
 
-  if(!playlistId){
+  const sourceId=sourceType==="playlist"
+    ? state.music.youtubePlaylistId
+    : state.music.youtubeVideoId;
+
+  if(!sourceType || !sourceId){
     if(youtubeMusicPlayer && youtubeMusicReady){
       try{youtubeMusicPlayer.stopVideo();}catch{}
     }
-    youtubeLoadedPlaylistId="";
+    youtubeLoadedSourceKey="";
     return;
   }
 
@@ -2211,19 +2306,26 @@ async function applyMusicConfiguration(){
     const player=await ensureYoutubeMusicPlayer();
     if(!player)return;
 
-    if(youtubeMusicReady && playlistId!==youtubeLoadedPlaylistId){
-      youtubeLoadedPlaylistId=playlistId;
-      player.cuePlaylist({
-        listType:"playlist",
-        list:playlistId,
-        index:0,
-        startSeconds:0
-      });
-      player.setLoop(true);
+    const sourceKey=`${sourceType}:${sourceId}`;
+
+    if(youtubeMusicReady && sourceKey!==youtubeLoadedSourceKey){
+      youtubeLoadedSourceKey=sourceKey;
+
+      if(sourceType==="playlist"){
+        player.cuePlaylist({
+          listType:"playlist",
+          list:sourceId,
+          index:0,
+          startSeconds:0
+        });
+        player.setLoop(true);
+      }else{
+        player.cueVideoById(sourceId);
+      }
     }
   }catch(err){
     console.warn(err);
-    setMusicSubtitle("Falha ao carregar playlist.");
+    setMusicSubtitle("Falha ao carregar conteúdo do YouTube.");
   }
 }
 
@@ -2237,7 +2339,7 @@ async function playYoutubeMusic(){
   try{
     const player=await ensureYoutubeMusicPlayer();
     if(!player){
-      toast("A DIRETORIA ainda não configurou uma playlist.");
+      toast("A DIRETORIA ainda não configurou música ou vídeo.");
       return;
     }
 
@@ -2276,9 +2378,15 @@ function previousMusic(){
     finishAnnouncement(true);
     return;
   }
+
   try{
     musicUserStarted=true;
-    youtubeMusicPlayer?.previousVideo?.();
+    if(state.music.youtubeSourceType==="video"){
+      youtubeMusicPlayer?.seekTo?.(0,true);
+      youtubeMusicPlayer?.playVideo?.();
+    }else{
+      youtubeMusicPlayer?.previousVideo?.();
+    }
   }catch{}
 }
 
@@ -2287,9 +2395,15 @@ function nextMusic(){
     finishAnnouncement(true);
     return;
   }
+
   try{
     musicUserStarted=true;
-    youtubeMusicPlayer?.nextVideo?.();
+    if(state.music.youtubeSourceType==="video"){
+      youtubeMusicPlayer?.seekTo?.(0,true);
+      youtubeMusicPlayer?.playVideo?.();
+    }else{
+      youtubeMusicPlayer?.nextVideo?.();
+    }
   }catch{}
 }
 
@@ -2310,9 +2424,13 @@ function renderMusicAdmin(){
   }
 
   if(status){
-    status.textContent=state.music.youtubePlaylistId
-      ? `Playlist ativa: ${state.music.youtubePlaylistId}`
-      : "Nenhuma playlist configurada.";
+    if(state.music.youtubeSourceType==="video" && state.music.youtubeVideoId){
+      status.textContent=`Vídeo ativo: ${state.music.youtubeVideoId}`;
+    }else if(state.music.youtubePlaylistId){
+      status.textContent=`Playlist ativa: ${state.music.youtubePlaylistId}`;
+    }else{
+      status.textContent="Nenhum conteúdo do YouTube configurado.";
+    }
   }
 
   if(list){
@@ -2338,21 +2456,27 @@ async function saveMusicPlaylist(){
 
   const input=document.getElementById("musicPlaylistUrl");
   const url=String(input?.value||"").trim();
-  const playlistId=extractYoutubePlaylistId(url);
+  const parsed=parseYoutubeSource(url);
 
-  if(!playlistId){
-    toast("Cole um link válido de playlist do YouTube/YouTube Music.");
+  if(!parsed.type || !parsed.id){
+    toast("Cole um link válido de vídeo ou playlist do YouTube/YouTube Music.");
     return;
   }
 
   try{
     markWriting();
+
     await setDoc(doc(db,"settings","music"),{
       youtubePlaylistUrl:url,
-      youtubePlaylistId:playlistId,
+      youtubeSourceType:parsed.type,
+      youtubePlaylistId:parsed.type==="playlist"?parsed.id:"",
+      youtubeVideoId:parsed.type==="video"?parsed.id:"",
       updatedAt:serverTimestamp()
     },{merge:true});
-    toast("Playlist salva.");
+
+    toast(parsed.type==="playlist"
+      ?"Playlist salva."
+      :"Vídeo salvo.");
   }catch(err){syncError(err);}
 }
 
@@ -2365,6 +2489,8 @@ async function clearMusicPlaylist(){
     await setDoc(doc(db,"settings","music"),{
       youtubePlaylistUrl:"",
       youtubePlaylistId:"",
+      youtubeVideoId:"",
+      youtubeSourceType:"",
       updatedAt:serverTimestamp()
     },{merge:true});
     toast("Playlist removida.");
@@ -2488,7 +2614,7 @@ function finishAnnouncement(forceResume=false){
   resumeYoutubeAfterAnnouncement=false;
   updateMusicPlayerUI();
 
-  if(shouldResume && state.music.youtubePlaylistId){
+  if(shouldResume && (state.music.youtubePlaylistId || state.music.youtubeVideoId)){
     setTimeout(()=>playYoutubeMusic(),180);
   }
 }
@@ -2545,7 +2671,7 @@ document.getElementById("addMusicAudio")?.addEventListener("click",addMusicAudio
 // Depois da primeira interação real do usuário, tentamos iniciar a playlist.
 // Navegadores podem bloquear autoplay com som antes dessa interação.
 document.addEventListener("pointerdown",()=>{
-  if(!musicUserStarted && state.music.youtubePlaylistId && !customAnnouncementAudio){
+  if(!musicUserStarted && (state.music.youtubePlaylistId || state.music.youtubeVideoId) && !customAnnouncementAudio){
     musicUserStarted=true;
     playYoutubeMusic();
   }

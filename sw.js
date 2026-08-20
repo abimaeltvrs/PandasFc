@@ -1,4 +1,4 @@
-const CACHE = "pandas-fc-v34-music-fixed";
+const CACHE = "pandas-fc-v35-youtube-flex";
 
 const CORE = [
   "./",

@@ -9,7 +9,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" href="./icon-192.png" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
-  <link rel="stylesheet" href="./styles.css?v=34" />
+  <link rel="stylesheet" href="./styles.css?v=35" />
   <title>PANDAS FC</title>
 
   <!-- OneSignal Web Push - usa o MESMO service worker do PWA -->
@@ -302,17 +302,17 @@
 
         <div class="music-admin-grid">
           <div class="card">
-            <h3>▶️ Playlist do YouTube</h3>
+            <h3>▶️ YouTube / YouTube Music</h3>
             <p class="muted">
-              Cole um link de playlist do YouTube ou YouTube Music. A playlist escolhida será a mesma para todos os usuários.
+              Cole um link de playlist ou de qualquer vídeo do YouTube/YouTube Music. O conteúdo escolhido será o mesmo para todos os usuários.
             </p>
-            <label class="music-field">Link da playlist
+            <label class="music-field">Link do YouTube
               <input id="musicPlaylistUrl" type="url"
-                placeholder="https://www.youtube.com/playlist?list=..." />
+                placeholder="https://youtu.be/... ou https://www.youtube.com/playlist?list=..." />
             </label>
             <div class="form-actions music-admin-actions">
-              <button id="saveMusicPlaylist" class="primary" type="button">Salvar playlist</button>
-              <button id="clearMusicPlaylist" class="danger" type="button">Remover playlist</button>
+              <button id="saveMusicPlaylist" class="primary" type="button">Salvar conteúdo</button>
+              <button id="clearMusicPlaylist" class="danger" type="button">Remover conteúdo</button>
             </div>
             <small id="musicPlaylistStatus" class="muted"></small>
           </div>
@@ -438,6 +438,6 @@
 
 
 
-  <script type="module" src="./app.js?v=34"></script>
+  <script type="module" src="./app.js?v=35"></script>
 </body>
 </html>
