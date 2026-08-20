@@ -1,0 +1,40 @@
+PANDAS FC v42 — PDF CORRIGIDO
+
+Alteração exclusiva na geração do PDF de Estatísticas.
+
+Antes:
+- o app dependia de uma biblioteca PDF carregada por CDN externo;
+- em celular/PWA esse carregamento podia falhar.
+
+Agora:
+- PDF é gerado pelo próprio JavaScript do PANDAS FC;
+- não depende de CDN ou biblioteca externa;
+- gera arquivo .pdf diretamente;
+- mostra "Gerando PDF...";
+- ao concluir, informa para verificar Downloads.
+
+O PDF contém:
+- resumo/dashboard;
+- jogos finalizados;
+- vitórias, empates e derrotas;
+- gols marcados/sofridos;
+- saldo;
+- aproveitamento;
+- gráfico simples de resultados;
+- histórico de partidas;
+- artilharia.
+
+NÃO foram alterados:
+- Firebase;
+- regras;
+- login;
+- DIRETORIA/JOGADOR;
+- contador online;
+- bate-papo;
+- menu;
+- escalação;
+- OneSignal;
+- PANDAS MUSIC;
+- Dashboard.
+
+Cache atualizado para v42.

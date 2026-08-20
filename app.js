@@ -1080,26 +1080,6 @@ function loadImage(src){return new Promise((res,rej)=>{const i=new Image();i.onl
 function drawContain(ctx,img,x,y,w,h){const r=Math.min(w/img.width,h/img.height),nw=img.width*r,nh=img.height*r;ctx.drawImage(img,x+(w-nw)/2,y+(h-nh)/2,nw,nh);}
 
 
-let jsPdfLoadPromise=null;
-
-function loadJsPdf(){
-  if(window.jspdf?.jsPDF)return Promise.resolve(window.jspdf.jsPDF);
-  if(jsPdfLoadPromise)return jsPdfLoadPromise;
-
-  jsPdfLoadPromise=new Promise((resolve,reject)=>{
-    const script=document.createElement("script");
-    script.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js";
-    script.async=true;
-    script.onload=()=>{
-      if(window.jspdf?.jsPDF)resolve(window.jspdf.jsPDF);
-      else reject(new Error("jsPDF não foi inicializado."));
-    };
-    script.onerror=()=>reject(new Error("Não foi possível carregar o gerador de PDF."));
-    document.head.appendChild(script);
-  });
-
-  return jsPdfLoadPromise;
-}
 
 function calculateStatsData(){
   const done=state.events.filter(e=>e.goalsFor!==''&&e.goalsAgainst!=='');
@@ -1133,6 +1113,228 @@ function pdfSafe(value){
     .replace(/[^\x20-\x7E]/g," ");
 }
 
+function pdfEscape(value){
+  return pdfSafe(value)
+    .replace(/\\/g,"\\\\")
+    .replace(/\(/g,"\\(")
+    .replace(/\)/g,"\\)");
+}
+
+function pdfText(x,y,size,text,bold=false){
+  return `BT /${bold?"F2":"F1"} ${size} Tf ${x} ${y} Td (${pdfEscape(text)}) Tj ET\n`;
+}
+
+function pdfRect(x,y,w,h,fillGray=0.95){
+  const g=Math.max(0,Math.min(1,fillGray));
+  return `${g} g ${x} ${y} ${w} ${h} re f\n0 g\n`;
+}
+
+function buildNativePdf(pages){
+  /*
+   * Gerador PDF mínimo e autocontido.
+   * Usa somente caracteres ASCII/Helvetica, evitando qualquer CDN.
+   */
+  const objects=[];
+  const add=obj=>{
+    objects.push(obj);
+    return objects.length;
+  };
+
+  const fontRegular=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+  const fontBold=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+
+  // Reservamos o objeto Pages; ele será preenchido depois.
+  const pagesObjectIndex=add("");
+
+  const pageObjectNumbers=[];
+
+  pages.forEach(content=>{
+    const stream=`<< /Length ${content.length} >>\nstream\n${content}endstream`;
+    const contentObj=add(stream);
+
+    const pageObj=add(
+      `<< /Type /Page /Parent ${pagesObjectIndex} 0 R `+
+      `/MediaBox [0 0 595 842] `+
+      `/Resources << /Font << /F1 ${fontRegular} 0 R /F2 ${fontBold} 0 R >> >> `+
+      `/Contents ${contentObj} 0 R >>`
+    );
+
+    pageObjectNumbers.push(pageObj);
+  });
+
+  objects[pagesObjectIndex-1]=
+    `<< /Type /Pages /Kids [${pageObjectNumbers.map(n=>`${n} 0 R`).join(" ")}] `+
+    `/Count ${pageObjectNumbers.length} >>`;
+
+  const catalog=add(`<< /Type /Catalog /Pages ${pagesObjectIndex} 0 R >>`);
+
+  let pdf="%PDF-1.4\n";
+  const offsets=[0];
+
+  objects.forEach((obj,i)=>{
+    offsets.push(pdf.length);
+    pdf+=`${i+1} 0 obj\n${obj}\nendobj\n`;
+  });
+
+  const xrefOffset=pdf.length;
+  pdf+=`xref\n0 ${objects.length+1}\n`;
+  pdf+="0000000000 65535 f \n";
+
+  for(let i=1;i<offsets.length;i++){
+    pdf+=String(offsets[i]).padStart(10,"0")+" 00000 n \n";
+  }
+
+  pdf+=
+    `trailer\n<< /Size ${objects.length+1} /Root ${catalog} 0 R >>\n`+
+    `startxref\n${xrefOffset}\n%%EOF`;
+
+  return new Blob([pdf],{type:"application/pdf"});
+}
+
+function buildStatsPdfPages(){
+  const stats=calculateStatsData();
+  const pages=[];
+  let content="";
+  let y=800;
+
+  function newPage(){
+    if(content)pages.push(content);
+    content="";
+    y=800;
+
+    content+=pdfRect(0,808,595,34,0.12);
+    content+=`1 g\n`;
+    content+=pdfText(38,825,18,"PANDAS FC",true);
+    content+=pdfText(38,812,9,"RELATORIO DE ESTATISTICAS",false);
+    content+=`0 g\n`;
+    y=780;
+  }
+
+  function ensureSpace(height=24){
+    if(y-height<40)newPage();
+  }
+
+  function line(text,size=10,bold=false,indent=0){
+    ensureSpace(size+10);
+    content+=pdfText(40+indent,y,size,text,bold);
+    y-=size+6;
+  }
+
+  function separator(){
+    ensureSpace(10);
+    content+="0.82 G 40 "+(y+2)+" m 555 "+(y+2)+" l S\n0 G\n";
+    y-=10;
+  }
+
+  newPage();
+
+  line("Dashboard geral",14,true);
+  y-=2;
+
+  const summaries=[
+    `Jogos finalizados: ${stats.done.length}`,
+    `Vitorias: ${stats.wins}`,
+    `Empates: ${stats.draws}`,
+    `Derrotas: ${stats.losses}`,
+    `Gols marcados: ${stats.gf}`,
+    `Gols sofridos: ${stats.ga}`,
+    `Saldo de gols: ${stats.balance}`,
+    `Aproveitamento: ${stats.performance}%`
+  ];
+
+  // Quadro visual simples 2 colunas.
+  let sx=40, sy=y;
+  summaries.forEach((text,idx)=>{
+    const col=idx%2;
+    const row=Math.floor(idx/2);
+    const x=40+col*255;
+    const yy=sy-row*36;
+
+    content+=pdfRect(x,yy-21,235,28,0.95);
+    content+=pdfText(x+8,yy-5,10,text,idx<4);
+  });
+
+  y=sy-4*36-8;
+  separator();
+
+  line("Resumo dos resultados",12,true);
+
+  const total=Math.max(1,stats.done.length);
+  const bars=[
+    ["Vitorias",stats.wins],
+    ["Empates",stats.draws],
+    ["Derrotas",stats.losses]
+  ];
+
+  bars.forEach(([label,value])=>{
+    ensureSpace(28);
+    content+=pdfText(40,y,9,`${label}: ${value}`,false);
+    const barX=135, barY=y-1, barW=390, barH=8;
+    content+=pdfRect(barX,barY,barW,barH,0.92);
+    const filled=Math.max(0,barW*(value/total));
+    if(filled>0){
+      content+=`0.35 g ${barX} ${barY} ${filled} ${barH} re f\n0 g\n`;
+    }
+    y-=22;
+  });
+
+  separator();
+  line("Historico de jogos",12,true);
+
+  const history=[...stats.done].sort(
+    (a,b)=>(b.date+b.time).localeCompare(a.date+a.time)
+  );
+
+  if(!history.length){
+    line("Nenhuma partida finalizada.",9,false);
+  }else{
+    history.forEach((e,index)=>{
+      ensureSpace(38);
+
+      const result=statusOf(e);
+      content+=pdfRect(40,y-18,515,26,index%2===0?0.97:0.93);
+      content+=pdfText(
+        48,y-4,9,
+        `PANDAS FC ${e.goalsFor} x ${e.goalsAgainst} ${e.opponent}`,
+        true
+      );
+      content+=pdfText(
+        48,y-14,7.5,
+        `${formatDate(e.date)} | ${result}`,
+        false
+      );
+      y-=32;
+    });
+  }
+
+  ensureSpace(90);
+  separator();
+  line("Artilharia",12,true);
+
+  const scorers=[...state.players]
+    .filter(p=>Number(p.goals||0)>0)
+    .sort((a,b)=>(b.goals||0)-(a.goals||0));
+
+  if(!scorers.length){
+    line("Nenhum gol registrado para jogadores.",9,false);
+  }else{
+    scorers.forEach((p,i)=>{
+      line(`${i+1}. #${p.number} ${p.name} - ${p.goals||0} gol(s)`,9,false);
+    });
+  }
+
+  ensureSpace(50);
+  separator();
+  line(
+    `Gerado em ${new Date().toLocaleString("pt-BR")} - PANDAS FC`,
+    7.5,
+    false
+  );
+
+  if(content)pages.push(content);
+  return pages;
+}
+
 async function generateStatisticsPdf(){
   const button=document.getElementById("generateStatsPdf");
   const oldText=button?.textContent||"📄 Gerar PDF";
@@ -1143,187 +1345,31 @@ async function generateStatisticsPdf(){
       button.textContent="Gerando PDF...";
     }
 
-    const JsPDF=await loadJsPdf();
-    const pdf=new JsPDF({orientation:"portrait",unit:"mm",format:"a4"});
-    const stats=calculateStatsData();
+    const pages=buildStatsPdfPages();
+    const blob=buildNativePdf(pages);
+    const url=URL.createObjectURL(blob);
 
-    const pageW=210;
-    const margin=14;
-    let y=16;
+    const filename=
+      `pandas-fc-estatisticas-${new Date().toISOString().slice(0,10)}.pdf`;
 
-    // Cabeçalho
-    pdf.setFillColor(6,24,41);
-    pdf.rect(0,0,pageW,34,"F");
-    pdf.setTextColor(255,255,255);
-    pdf.setFont("helvetica","bold");
-    pdf.setFontSize(21);
-    pdf.text("PANDAS FC",margin,15);
-    pdf.setFontSize(12);
-    pdf.text("Relatorio de Estatisticas",margin,23);
-    pdf.setFont("helvetica","normal");
-    pdf.setFontSize(8.5);
-    pdf.text(
-      `Gerado em ${new Date().toLocaleString("pt-BR")}`,
-      margin,
-      29
-    );
+    const link=document.createElement("a");
+    link.href=url;
+    link.download=filename;
+    link.style.display="none";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
 
-    y=43;
-    pdf.setTextColor(20,35,48);
-    pdf.setFont("helvetica","bold");
-    pdf.setFontSize(14);
-    pdf.text("Dashboard geral",margin,y);
-    y+=7;
+    /*
+     * No Android/PWA o download pode ser processado de forma assíncrona.
+     * Mantemos a URL viva por alguns segundos antes de liberar.
+     */
+    setTimeout(()=>URL.revokeObjectURL(url),15000);
 
-    const cards=[
-      ["Jogos",stats.done.length],
-      ["Vitorias",stats.wins],
-      ["Empates",stats.draws],
-      ["Derrotas",stats.losses],
-      ["Gols marcados",stats.gf],
-      ["Gols sofridos",stats.ga],
-      ["Saldo",stats.balance],
-      ["Aproveitamento",`${stats.performance}%`]
-    ];
-
-    const cardW=42.5, cardH=20, gap=2.5;
-    cards.forEach(([label,value],idx)=>{
-      const col=idx%4, row=Math.floor(idx/4);
-      const x=margin+col*(cardW+gap);
-      const cy=y+row*(cardH+gap);
-
-      pdf.setFillColor(240,246,250);
-      pdf.roundedRect(x,cy,cardW,cardH,2,2,"F");
-      pdf.setTextColor(80,100,115);
-      pdf.setFont("helvetica","normal");
-      pdf.setFontSize(7.5);
-      pdf.text(pdfSafe(label),x+3,cy+6);
-      pdf.setTextColor(5,70,105);
-      pdf.setFont("helvetica","bold");
-      pdf.setFontSize(15);
-      pdf.text(pdfSafe(value),x+3,cy+15);
-    });
-
-    y+=48;
-
-    // Barras simples para V/E/D
-    pdf.setTextColor(20,35,48);
-    pdf.setFontSize(12);
-    pdf.setFont("helvetica","bold");
-    pdf.text("Resumo de resultados",margin,y);
-    y+=7;
-
-    const total=Math.max(1,stats.done.length);
-    const bars=[
-      ["Vitorias",stats.wins],
-      ["Empates",stats.draws],
-      ["Derrotas",stats.losses]
-    ];
-
-    bars.forEach(([label,value])=>{
-      pdf.setTextColor(60,75,88);
-      pdf.setFont("helvetica","normal");
-      pdf.setFontSize(8);
-      pdf.text(`${pdfSafe(label)}: ${value}`,margin,y+3);
-
-      const bx=52, bw=135;
-      pdf.setFillColor(230,235,240);
-      pdf.roundedRect(bx,y,bw,4,2,2,"F");
-      pdf.setFillColor(15,137,207);
-      pdf.roundedRect(bx,y,bw*(value/total),4,2,2,"F");
-      y+=9;
-    });
-
-    y+=3;
-
-    // Histórico
-    pdf.setTextColor(20,35,48);
-    pdf.setFont("helvetica","bold");
-    pdf.setFontSize(12);
-    pdf.text("Historico de jogos",margin,y);
-    y+=7;
-
-    const history=[...stats.done].sort(
-      (a,b)=>(b.date+b.time).localeCompare(a.date+a.time)
-    );
-
-    if(!history.length){
-      pdf.setFont("helvetica","normal");
-      pdf.setFontSize(9);
-      pdf.text("Nenhuma partida finalizada.",margin,y);
-    }else{
-      history.forEach((e,index)=>{
-        if(y>278){
-          pdf.addPage();
-          y=16;
-        }
-
-        const result=statusOf(e);
-        pdf.setFillColor(index%2===0?248:239,index%2===0?250:245,index%2===0?252:248);
-        pdf.roundedRect(margin,y-4,182,12,1.5,1.5,"F");
-
-        pdf.setTextColor(25,40,52);
-        pdf.setFont("helvetica","bold");
-        pdf.setFontSize(8.5);
-        pdf.text(
-          pdfSafe(`PANDAS FC ${e.goalsFor} x ${e.goalsAgainst} ${e.opponent}`),
-          margin+3,
-          y+1
-        );
-
-        pdf.setFont("helvetica","normal");
-        pdf.setFontSize(7.2);
-        pdf.setTextColor(90,105,116);
-        pdf.text(
-          pdfSafe(`${formatDate(e.date)}  |  ${result}`),
-          margin+3,
-          y+5.5
-        );
-
-        y+=14;
-      });
-    }
-
-    // Artilharia
-    const scorers=[...state.players]
-      .filter(p=>Number(p.goals||0)>0)
-      .sort((a,b)=>(b.goals||0)-(a.goals||0));
-
-    if(y>250){pdf.addPage();y=16;}
-    y+=5;
-    pdf.setTextColor(20,35,48);
-    pdf.setFont("helvetica","bold");
-    pdf.setFontSize(12);
-    pdf.text("Artilharia",margin,y);
-    y+=7;
-
-    if(!scorers.length){
-      pdf.setFont("helvetica","normal");
-      pdf.setFontSize(9);
-      pdf.text("Nenhum gol registrado para jogadores.",margin,y);
-    }else{
-      scorers.forEach((p,i)=>{
-        if(y>282){pdf.addPage();y=16;}
-        pdf.setFont("helvetica","normal");
-        pdf.setFontSize(8.5);
-        pdf.setTextColor(30,45,55);
-        pdf.text(
-          pdfSafe(`${i+1}. #${p.number} ${p.name} - ${p.goals||0} gol(s)`),
-          margin,
-          y
-        );
-        y+=6;
-      });
-    }
-
-    pdf.save(
-      `pandas-fc-estatisticas-${new Date().toISOString().slice(0,10)}.pdf`
-    );
-
-    toast("PDF de Estatísticas gerado.");
+    toast("PDF gerado. Verifique seus Downloads.");
   }catch(err){
     console.error("PDF Estatísticas:",err);
-    toast(err?.message||"Não foi possível gerar o PDF.");
+    toast("Não foi possível gerar o PDF.");
   }finally{
     if(button){
       button.disabled=false;
