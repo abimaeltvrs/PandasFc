@@ -1,0 +1,21 @@
+PANDAS FC v45 — ALERTA OPCIONAL NA AGENDA
+
+Na criação/edição de partidas, a DIRETORIA agora pode escolher:
+- Não enviar alerta (padrão)
+- 15 min antes
+- 30 min antes
+- 1 hora antes
+- 2 horas antes
+- 6 horas antes
+- 12 horas antes
+- 1 dia antes
+- horário personalizado
+
+REGRAS:
+- Salvar um jogo sem alerta não chama o Worker/OneSignal.
+- Salvar com alerta continua funcionando como antes.
+- Ao editar uma partida que já tinha notificação e trocar para "Não enviar alerta",
+  o app tenta cancelar a notificação antiga.
+- O restante do cadastro da partida não foi alterado.
+
+Mantidas todas as funções da v44.

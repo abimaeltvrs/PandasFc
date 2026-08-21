@@ -57,6 +57,7 @@ const PUSH_WORKER_URL = "https://pandas-fc-push.abimaeltablet.workers.dev/";
 
 function getAlertLabel(value){
   const labels={
+    "none":"sem alerta",
     "15":"15 min antes",
     "30":"30 min antes",
     "60":"1 hora antes",
@@ -831,20 +832,23 @@ eventForm.addEventListener('submit',async e=>{
   const date=document.getElementById('matchDate').value;
   const time=document.getElementById('matchTime').value;
   const location=document.getElementById('matchLocation').value.trim();
-  const alertValue=matchAlert?.value || '60';
+  const alertValue=matchAlert?.value || 'none';
   const customValue=customAlertTime?.value || '';
+  const wantsAlert=alertValue!=='none';
 
-  let alertAt;
-  try{
-    alertAt=getAlertDateISO(date,time,alertValue,customValue);
-  }catch(err){
-    alert(err.message);
-    return;
-  }
+  let alertAt='';
+  if(wantsAlert){
+    try{
+      alertAt=getAlertDateISO(date,time,alertValue,customValue);
+    }catch(err){
+      alert(err.message);
+      return;
+    }
 
-  if(new Date(alertAt).getTime() <= Date.now()){
-    alert('O horário do alerta precisa estar no futuro. Escolha uma antecedência menor ou um horário personalizado.');
-    return;
+    if(new Date(alertAt).getTime() <= Date.now()){
+      alert('O horário do alerta precisa estar no futuro. Escolha uma antecedência menor ou um horário personalizado.');
+      return;
+    }
   }
 
   const obj={
@@ -865,46 +869,70 @@ eventForm.addEventListener('submit',async e=>{
   try{
     markWriting();
 
-    // Agenda primeiro a nova notificação. Se for edição, informa o ID anterior
-    // para o Worker cancelar a notificação antiga após criar a nova.
-    const pushResult=await callPushWorker({
-      action:"schedule",
-      opponent,
-      date:formatDate(date),
-      time,
-      location,
-      sendAt:alertAt,
-      alertLabel:getAlertLabel(alertValue),
-      previousMessageId:old?.notificationMessageId||null,
-      message:
-        `PANDAS FC x ${opponent}\n` +
-        `🕐 ${formatDate(date)} às ${time}\n` +
-        `${location ? `📍 ${location}\n` : ''}` +
-        `🔔 Alerta: ${getAlertLabel(alertValue)}`
-    });
+    if(wantsAlert){
+      // Agenda a notificação somente quando a DIRETORIA escolher um alerta.
+      const pushResult=await callPushWorker({
+        action:"schedule",
+        opponent,
+        date:formatDate(date),
+        time,
+        location,
+        sendAt:alertAt,
+        alertLabel:getAlertLabel(alertValue),
+        previousMessageId:old?.notificationMessageId||null,
+        message:
+          `PANDAS FC x ${opponent}\n` +
+          `🕐 ${formatDate(date)} às ${time}\n` +
+          `${location ? `📍 ${location}\n` : ''}` +
+          `🔔 Alerta: ${getAlertLabel(alertValue)}`
+      });
 
-    obj.notificationMessageId=pushResult.messageId || '';
+      obj.notificationMessageId=pushResult.messageId || '';
+    }else{
+      // Se era uma partida editada que já tinha alerta, cancela o alerta antigo.
+      if(old?.notificationMessageId){
+        try{
+          await callPushWorker({
+            action:"cancel",
+            messageId:old.notificationMessageId
+          });
+        }catch(cancelErr){
+          console.warn('Não foi possível cancelar o alerta anterior:',cancelErr);
+        }
+      }
+      obj.notificationMessageId='';
+      obj.alertAt='';
+      obj.customAlertTime='';
+    }
 
     await setDoc(doc(db,"events",id),obj,{merge:true});
 
     eventForm.reset();
     document.getElementById('eventId').value='';
-    if(matchAlert) matchAlert.value='60';
+    if(matchAlert) matchAlert.value='none';
     if(customAlertTime) customAlertTime.value='';
     updateCustomAlertVisibility();
 
-    toast(`Confronto salvo. 🔔 Alerta: ${getAlertLabel(alertValue)}.`);
+    toast(
+      wantsAlert
+        ? `Confronto salvo. 🔔 Alerta: ${getAlertLabel(alertValue)}.`
+        : 'Confronto salvo sem notificação.'
+    );
   }catch(err){
-    console.error('Erro ao agendar alerta:',err);
-    setSyncStatus("⚠️ Erro ao agendar alerta","err");
-    alert(`Não foi possível agendar a notificação.\n\n${err.message}`);
+    console.error('Erro ao salvar confronto:',err);
+    setSyncStatus("⚠️ Erro ao salvar confronto","err");
+    alert(
+      wantsAlert
+        ? `Não foi possível salvar/agendar a notificação.\n\n${err.message}`
+        : `Não foi possível salvar o confronto.\n\n${err.message}`
+    );
   }
 });
 
 document.getElementById('cancelEventEdit').onclick=()=>{
   eventForm.reset();
   document.getElementById('eventId').value='';
-  if(matchAlert) matchAlert.value='60';
+  if(matchAlert) matchAlert.value='none';
   if(customAlertTime) customAlertTime.value='';
   updateCustomAlertVisibility();
 };
@@ -919,7 +947,7 @@ function editEvent(id){
   document.getElementById('matchTime').value=e.time||'';
   document.getElementById('matchLocation').value=e.location||'';
 
-  if(matchAlert) matchAlert.value=String(e.alertValue||'60');
+  if(matchAlert) matchAlert.value=String(e.alertValue||(e.notificationMessageId?'60':'none'));
   if(customAlertTime) customAlertTime.value=e.customAlertTime||'';
   updateCustomAlertVisibility();
 

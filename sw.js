@@ -1,4 +1,4 @@
-const CACHE = "pandas-fc-v44-cloudinary-gallery";
+const CACHE = "pandas-fc-v45-alerta-opcional";
 
 const CORE = [
   "./",
