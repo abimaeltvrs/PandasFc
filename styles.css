@@ -1485,3 +1485,51 @@ input:disabled{opacity:.72;cursor:not-allowed}
   border-radius:12px;
 }
 .dashboard-legacy-upload summary{cursor:pointer;font-weight:700}
+
+
+/* =========================================================
+   v46 — IDENTIDADE VISUAL / ÍCONES PANDAS FC
+   ========================================================= */
+:root{
+  --panda-ink:#07101f;
+  --panda-navy:#17344f;
+  --panda-blue:#2f6f9f;
+  --panda-cyan:#5fc7e8;
+  --panda-white:#ffffff;
+  --panda-soft:#b8d7e7;
+}
+.sidebar .nav-btn{
+  display:flex !important;align-items:center !important;gap:10px !important;
+  min-height:48px;padding:8px 12px !important;border:1px solid transparent !important;
+  border-radius:12px !important;color:var(--panda-white) !important;
+  background:rgba(7,16,31,.58) !important;
+  transition:transform .16s ease,background .16s ease,border-color .16s ease,box-shadow .16s ease;
+}
+.sidebar .nav-btn:hover{border-color:rgba(95,199,232,.45) !important;background:rgba(23,52,79,.78) !important}
+.sidebar .nav-btn.active{
+  background:linear-gradient(135deg,var(--panda-cyan),#3da4cf) !important;
+  color:#06111e !important;border-color:rgba(255,255,255,.72) !important;
+  box-shadow:0 0 0 1px rgba(95,199,232,.25),0 6px 20px rgba(31,154,207,.30) !important;
+  transform:translateY(-1px)
+}
+.nav-icon{width:32px;height:32px;flex:0 0 32px;display:grid;place-items:center;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(95,199,232,.40)}
+.nav-btn.active .nav-icon{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.82)}
+.nav-icon svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.nav-label{font-weight:800;letter-spacing:.01em;text-align:left}
+.status-dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex:0 0 10px}
+.status-dot.online{background:#38d978;box-shadow:0 0 0 3px rgba(56,217,120,.12),0 0 12px rgba(56,217,120,.55)}
+.online-count,.chat-online-pill{display:inline-flex !important;align-items:center !important;gap:7px !important;border-color:rgba(95,199,232,.35) !important;background:rgba(7,16,31,.74) !important;color:var(--panda-white) !important}
+.icon-action{display:inline-flex !important;align-items:center !important;justify-content:center !important;gap:8px !important}
+.action-icon{min-width:26px;height:26px;padding:0 5px;display:inline-grid;place-items:center;border-radius:7px;font-size:.72rem;font-weight:950;line-height:1;border:1px solid rgba(255,255,255,.38);background:rgba(255,255,255,.13)}
+.action-icon.upload,.action-icon.download{font-size:1.1rem}.action-icon.trash{font-size:1.2rem}
+button.primary{background:linear-gradient(135deg,#238fbd,var(--panda-cyan)) !important;color:#06111e !important;border-color:rgba(255,255,255,.5) !important;font-weight:900 !important}
+button.primary:hover{filter:brightness(1.06)}
+button.ghost{border-color:rgba(95,199,232,.34) !important}
+.card{border-color:rgba(95,199,232,.16) !important}
+input:focus,select:focus,textarea:focus{border-color:var(--panda-cyan) !important;box-shadow:0 0 0 2px rgba(95,199,232,.14) !important}
+@media(max-width:760px){
+  .sidebar{align-items:stretch}
+  .sidebar .nav-btn{flex-direction:column !important;justify-content:center !important;gap:4px !important;min-width:92px;min-height:70px;padding:7px 8px !important}
+  .nav-icon{width:30px;height:30px;flex-basis:30px}.nav-icon svg{width:20px;height:20px}
+  .nav-label{font-size:.73rem;line-height:1.05;text-align:center;white-space:normal}
+}

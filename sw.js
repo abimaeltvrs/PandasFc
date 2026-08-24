@@ -1,4 +1,4 @@
-const CACHE = "pandas-fc-v45-alerta-opcional";
+const CACHE = "pandas-fc-v46-icones-visuais";
 
 const CORE = [
   "./",

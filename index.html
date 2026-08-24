@@ -9,7 +9,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" href="./icon-192.png" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
-  <link rel="stylesheet" href="./styles.css?v=45" />
+  <link rel="stylesheet" href="./styles.css?v=46" />
   <title>PANDAS FC</title>
 
   <!-- OneSignal Web Push - usa o MESMO service worker do PWA -->
@@ -83,7 +83,7 @@
         <button id="logoutBtn" class="logout-btn" type="button">Sair</button>
       </div>
       <span id="syncStatus" class="sync-status">☁️ Conectando...</span>
-      <button id="onlineCountBtn" class="online-count" type="button">🟢 <span id="onlineCount">0</span> online</button>
+      <button id="onlineCountBtn" class="online-count" type="button"><span class="status-dot online"></span><span id="onlineCount">0</span> online</button>
       <button id="installBtn" class="install-btn">📲 Instalar aplicativo</button>
     </div>
 
@@ -112,17 +112,17 @@
 
   <div class="layout">
     <aside class="sidebar">
-      <button class="nav-btn active" data-page="dashboard">🐼 Início / Dashboard</button>
-      <button class="nav-btn" data-page="chat">💬 Bate-papo</button>
-      <button class="nav-btn admin-only" data-page="cadastro">👤 Cadastro de Jogadores</button>
-      <button class="nav-btn admin-only" data-page="elenco">📋 Elenco</button>
-      <button class="nav-btn admin-only" data-page="artilharia">🏆 Artilharia</button>
-      <button class="nav-btn" data-page="escalacao">⚽ Escalação</button>
-      <button class="nav-btn" data-page="partidas">⚽ Partidas</button>
-      <button class="nav-btn" data-page="agenda">📅 Agenda</button>
-      <button class="nav-btn" data-page="estatisticas">📊 Estatísticas</button>
-      <button class="nav-btn admin-only" data-page="musica">🎵 Música</button>
-      <button class="nav-btn" data-page="config">⚙️ Configurações</button>
+      <button class="nav-btn active" data-page="dashboard"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.2 12 4l9 7.2v8.3a1.5 1.5 0 0 1-1.5 1.5h-5v-6h-5v6h-5A1.5 1.5 0 0 1 3 19.5z"/></svg></span><span class="nav-label">Início / Dashboard</span></button>
+      <button class="nav-btn" data-page="chat"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v12H8l-4 4z"/></svg></span><span class="nav-label">Bate-papo</span></button>
+      <button class="nav-btn admin-only" data-page="cadastro"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2.5 21c.7-4.3 3-6.5 6.5-6.5s5.8 2.2 6.5 6.5"/><path d="M18 7v6M15 10h6"/></svg></span><span class="nav-label">Cadastro de Jogadores</span></button>
+      <button class="nav-btn admin-only" data-page="elenco"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3"/><circle cx="16.5" cy="9" r="2.5"/><path d="M2.5 20c.5-4 2.5-6 5.5-6s5 2 5.5 6"/><path d="M13.5 15c3.5-.8 6 .9 7 5"/></svg></span><span class="nav-label">Elenco</span></button>
+      <button class="nav-btn admin-only" data-page="artilharia"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v3c0 4-2 7-5 8-3-1-5-4-5-8z"/><path d="M7 6H4c0 4 1.5 6 4.5 6M17 6h3c0 4-1.5 6-4.5 6M12 15v4M8 21h8M9.5 19h5"/></svg></span><span class="nav-label">Artilharia</span></button>
+      <button class="nav-btn" data-page="escalacao"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4 4 7l3 3 2-2v12h6V8l2 2 3-3-3-3-3 2h-4z"/></svg></span><span class="nav-label">Escalação</span></button>
+      <button class="nav-btn" data-page="partidas"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m12 7 3 2-1 3h-4L9 9zM6 10l4 2-1 4-3 1M18 10l-4 2 1 4 3 1M9 16l3 2 3-2"/></svg></span><span class="nav-label">Partidas</span></button>
+      <button class="nav-btn" data-page="agenda"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M7 14h3M14 14h3M7 18h3M14 18h3"/></svg></span><span class="nav-label">Agenda</span></button>
+      <button class="nav-btn" data-page="estatisticas"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V11h4v9M10 20V5h4v15M16 20v-7h4v7"/></svg></span><span class="nav-label">Estatísticas</span></button>
+      <button class="nav-btn admin-only" data-page="musica"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/></svg></span><span class="nav-label">Música</span></button>
+      <button class="nav-btn" data-page="config"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19 13.5v-3l-2-.8-.7-1.7.8-2-2.1-2.1-2 .8-1.7-.7-.8-2h-3l-.8 2-1.7.7-2-.8L2.9 6l.8 2L3 9.7l-2 .8v3l2 .8.7 1.7-.8 2L5 20.1l2-.8 1.7.7.8 2h3l.8-2 1.7-.7 2 .8 2.1-2.1-.8-2 .7-1.7z"/></svg></span><span class="nav-label">Configurações</span></button>
     </aside>
 
     <main class="content">
@@ -185,7 +185,7 @@
       <section id="escalacao" class="page">
         <div class="page-header">
           <div><h2>⚽ Escalação</h2><p id="lineupDescription">Marque os jogadores e arraste-os livremente pelo campo.</p></div>
-          <button id="downloadLineup" class="primary">🖼️ Gerar imagem</button>
+          <button id="downloadLineup" class="primary icon-action"><span class="action-icon download">↓</span><span>Gerar imagem</span></button>
         </div>
         <div class="lineup-layout">
           <div id="lineupSelectorCard" class="card">
@@ -282,7 +282,7 @@
           <div class="stats-season-controls">
             <label for="statsSeasonSelect">Temporada</label>
             <select id="statsSeasonSelect"></select>
-            <button id="generateStatsPdf" class="primary" type="button">📄 Gerar PDF</button>
+            <button id="generateStatsPdf" class="primary icon-action" type="button"><span class="action-icon">PDF</span><span>Gerar PDF</span></button>
           </div>
         </div>
         <div id="statsCards" class="stats-grid"></div>
@@ -364,7 +364,7 @@
       <section id="chat" class="page">
         <div class="page-header">
           <div><h2>💬 Bate-papo</h2><p>Mensagens em tempo real entre DIRETORIA e JOGADORES.</p><small id="chatRealtimeStatus" class="chat-realtime-status">🟡 Conectando ao bate-papo...</small></div>
-          <div class="chat-online-pill">🟢 <span id="chatOnlineCount">0</span> online</div>
+          <div class="chat-online-pill"><span class="status-dot online"></span><span id="chatOnlineCount">0</span> online</div>
         </div>
         <div id="onlineUsersPanel" class="online-users-panel hidden">
           <strong>Usuários online agora</strong>
@@ -451,7 +451,7 @@
                 <div id="dashboardUploadProgressBar" class="dashboard-upload-progress-bar"></div>
               </div>
               <div id="dashboardUploadProgressText" class="muted"></div>
-              <button id="uploadDashboardCloudinary" class="primary" type="button" disabled>☁️ Enviar e publicar no Dashboard</button>
+              <button id="uploadDashboardCloudinary" class="primary icon-action" type="button" disabled><span class="action-icon upload">↑</span><span>Enviar e publicar no Dashboard</span></button>
             </div>
 
             <details class="dashboard-legacy-upload">
@@ -473,8 +473,8 @@
               </select>
             </label>
             <div class="form-actions">
-              <button id="saveDashboardMediaUrl" class="primary" type="button">Salvar URL</button>
-              <button id="removeDashboardMedia" class="danger" type="button">Remover mídia</button>
+              <button id="saveDashboardMediaUrl" class="primary icon-action" type="button"><span class="action-icon link">↗</span><span>Salvar URL</span></button>
+              <button id="removeDashboardMedia" class="danger icon-action" type="button"><span class="action-icon trash">×</span><span>Remover mídia</span></button>
             </div>
           </div>
           <button id="migrateBtn" class="ghost admin-only">⬆️ Importar dados antigos deste dispositivo</button>
@@ -493,6 +493,6 @@
 
 
 
-  <script type="module" src="./app.js?v=45"></script>
+  <script type="module" src="./app.js?v=46"></script>
 </body>
 </html>

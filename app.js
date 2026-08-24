@@ -1,3 +1,4 @@
+document.documentElement.classList.add("pandas-icons-v46");
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 import {
   getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot,

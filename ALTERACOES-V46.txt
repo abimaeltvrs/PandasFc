@@ -1,0 +1,13 @@
+PANDAS FC v46 — ÍCONES E IDENTIDADE VISUAL
+
+Aplicado novo padrão visual inspirado na paleta do time.
+
+- Emojis principais do menu substituídos por ícones SVG vetoriais.
+- Item selecionado em ciano.
+- Mobile com ícone acima do nome.
+- Desktop com ícone ao lado.
+- Contador online com status visual.
+- PDF, upload, salvar URL, remover mídia e gerar imagem padronizados.
+- Botões principais e focos seguem a paleta PANDAS FC.
+
+Mantidas todas as funções da v45 sem alterações funcionais.
