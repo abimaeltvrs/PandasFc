@@ -1710,3 +1710,12 @@ input:focus,select:focus,textarea:focus{border-color:var(--panda-cyan) !importan
     padding-right:8px !important;
   }
 }
+
+/* v49 — background final aprovado */
+#dashboard{
+  background-image:url("./dashboard-lances-pandas.png") !important;
+  background-position:center top !important;
+  background-repeat:no-repeat !important;
+  background-size:100% auto !important;
+  background-attachment:scroll !important;
+}

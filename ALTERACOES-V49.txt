@@ -1,0 +1,7 @@
+PANDAS FC v49 — BACKGROUND FINAL DO DASHBOARD
+
+- Background aprovado substituído.
+- Sem desenho/falso player incorporado à arte.
+- O vídeo real do Dashboard continua sobre o background.
+- Background acompanha o conteúdo do Dashboard durante a rolagem.
+- Mantidas todas as funções anteriores.
