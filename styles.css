@@ -1776,3 +1776,114 @@ input:focus,select:focus,textarea:focus{border-color:var(--panda-cyan) !importan
     background-size:cover;
   }
 }
+
+
+/* =========================================================
+   v51 — DASHBOARD NA PROPORÇÃO REAL DO BACKGROUND
+   Corrige o "cover" da v50 que ampliava/cortava a arte.
+   ========================================================= */
+
+#dashboard{
+  --dashboard-art-ratio: 16 / 9; /* altura/largura da arte vertical 9:16 */
+  position:relative !important;
+  isolation:isolate !important;
+  width:100% !important;
+  min-height:calc(100vw * 16 / 9) !important;
+  height:auto !important;
+  padding:0 12px 28px !important;
+  margin:0 !important;
+  background:#020b17 !important;
+  background-image:none !important;
+  overflow:hidden !important;
+}
+
+/* Exibe a arte inteira, sem crop e sem deformação. */
+#dashboard::before{
+  content:"";
+  position:absolute;
+  z-index:-2;
+  top:0;
+  left:0;
+  width:100%;
+  aspect-ratio:9 / 16;
+  height:auto;
+  background:url("./dashboard-lances-pandas.png") center top / 100% 100% no-repeat !important;
+  pointer-events:none;
+}
+
+/* Remove a extensão visual criada na v50. */
+#dashboard::after{
+  content:none !important;
+}
+
+/* Conteúdo real permanece acima da arte. */
+#dashboard > *{
+  position:relative;
+  z-index:1;
+}
+
+/*
+ * O vídeo real ocupa a região superior reservada para mídia.
+ * Margens laterais evitam que a moldura encoste nas bordas.
+ */
+#dashboard .dashboard-logo-wrap{
+  width:100% !important;
+  min-height:0 !important;
+  height:auto !important;
+  margin:0 auto !important;
+  padding:12px 4px 0 !important;
+}
+
+#dashboard .dashboard-media-stage{
+  width:100% !important;
+  max-width:none !important;
+  min-height:0 !important;
+  height:auto !important;
+  margin:0 auto !important;
+  padding:0 !important;
+  background:transparent !important;
+  border:0 !important;
+}
+
+#dashboard #dashboardMediaImage,
+#dashboard #dashboardMediaVideo,
+#dashboard #dashboardMediaFrame{
+  width:100% !important;
+  max-width:none !important;
+  aspect-ratio:16 / 9 !important;
+  height:auto !important;
+  max-height:none !important;
+  object-fit:contain !important;
+  object-position:center !important;
+  margin:0 auto !important;
+  border-radius:12px !important;
+}
+
+/* Mobile: altura do Dashboard termina junto com a arte vertical. */
+@media(max-width:760px){
+  #dashboard{
+    min-height:calc(100vw * 16 / 9) !important;
+    padding:0 12px 18px !important;
+  }
+
+  #dashboard::before{
+    width:100%;
+    height:auto;
+    aspect-ratio:9 / 16;
+    background-size:100% 100% !important;
+  }
+
+  #dashboard .dashboard-logo-wrap{
+    padding-top:12px !important;
+  }
+}
+
+/* Em telas maiores, limita a arte para não ficar exageradamente larga. */
+@media(min-width:761px){
+  #dashboard{
+    min-height:900px !important;
+  }
+  #dashboard::before{
+    background-size:cover !important;
+  }
+}

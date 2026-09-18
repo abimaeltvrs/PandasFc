@@ -1,0 +1,17 @@
+PANDAS FC v51 — DASHBOARD PROPORÇÃO CORRETA
+
+CORREÇÕES:
+- removido o comportamento cover da v50 no celular;
+- background vertical passa a ser exibido inteiro;
+- mantém proporção 9:16, sem deformar;
+- Dashboard recebe altura proporcional à própria arte;
+- elimina área vazia depois do fim do background;
+- vídeo real continua 16:9 e centralizado;
+- removida a camada de extensão/gradiente da v50;
+- demais funções permanecem intactas.
+
+Teste recomendado:
+1. publicar todos os arquivos;
+2. fechar o PWA/navegador;
+3. abrir novamente para carregar o cache v51;
+4. testar o Dashboard no celular.
