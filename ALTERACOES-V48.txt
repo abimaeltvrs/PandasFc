@@ -1,0 +1,24 @@
+PANDAS FC v48 — DASHBOARD LANCES
+
+NOVO:
+- Background vertical personalizado no Início/Dashboard.
+- Tema: Lances, Gols e Melhores Momentos.
+- Arte otimizada para visualização em celular.
+- Vídeos/fotos enviados pela DIRETORIA continuam dinâmicos.
+- Mídia horizontal 16:9 fica centralizada na região superior.
+- Moldura azul/ciano integrada ao visual.
+- Restante da arte continua visível abaixo do vídeo.
+
+MANTIDO:
+- Upload Cloudinary
+- URL/YouTube
+- PANDAS MUSIC
+- Firebase
+- chat e online
+- agenda e alerta opcional
+- estatísticas/PDF
+- ícones v46
+- demais permissões e funções
+
+Novo arquivo necessário no GitHub:
+dashboard-lances-pandas.png

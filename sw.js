@@ -1,7 +1,8 @@
-const CACHE = "pandas-fc-v46-icones-visuais";
+const CACHE = "pandas-fc-v48-dashboard-lances";
 
 const CORE = [
-  "./",
+    "./dashboard-lances-pandas.png",
+"./",
   "./index.html",
   "./styles.css",
   "./app.js",

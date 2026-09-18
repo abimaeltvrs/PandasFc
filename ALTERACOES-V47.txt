@@ -1,0 +1,10 @@
+PANDAS FC v47 — DASHBOARD VISÍVEL AO ABRIR
+
+- Remove a grande área vazia antes da mídia.
+- Foto/vídeo começa no topo da área do Dashboard.
+- Mídia continua centralizada.
+- Altura adaptada ao celular.
+- YouTube/iframe também recebe novo dimensionamento.
+- Nenhuma função do app foi alterada.
+
+Mantidas todas as funções da v46.
