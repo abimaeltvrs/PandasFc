@@ -1,4 +1,4 @@
-const CACHE = "pandas-fc-v49-dashboard-bg-final";
+const CACHE = "pandas-fc-v50-dashboard-bg-completo";
 
 const CORE = [
     "./dashboard-lances-pandas.png",

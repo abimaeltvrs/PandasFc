@@ -1,0 +1,11 @@
+PANDAS FC v50 — CORREÇÃO DO BACKGROUND DO DASHBOARD
+
+CORRIGIDO:
+- O background agora cobre 100% da altura real do Dashboard.
+- Ao rolar até o final não aparece mais área sem background.
+- A mesma arte aprovada da v49 foi mantida.
+- A imagem não é esticada/deformada: usa preenchimento proporcional (cover).
+- O vídeo real continua sobre a arte.
+- Menu inferior e demais elementos permanecem como estavam.
+
+Nenhuma funcionalidade do Firebase, chat, música, mídia, agenda ou notificações foi alterada.
